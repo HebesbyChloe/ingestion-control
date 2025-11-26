@@ -314,7 +314,7 @@ export default function RulesPage() {
   const handleAddRule = () => {
     // Get default config from registry
     const ruleTypeConfig = getRuleTypeConfig(selectedRuleType);
-    let ruleConfig = { ...ruleTypeConfig.defaultConfig };
+    let ruleConfig: any = { ...ruleTypeConfig.defaultConfig };
 
     // For pricing rules, auto-prefill min_price from last row's max_price + 1
     if (selectedRuleType === 'pricing') {
@@ -337,7 +337,7 @@ export default function RulesPage() {
       name: `New ${selectedRuleType} Rule`,
       priority: localRules.length + pendingCreates.length,
       enabled: true,
-      config: ruleConfig,
+      config: ruleConfig as PricingRuleConfig | OriginRuleConfig | ScoringRuleConfig,
       notes: '',
     };
 
