@@ -1,0 +1,70 @@
+feat: Complete admin panel with schedules, feeds, workers, and rules management
+
+Major Features:
+- Schedule management with cron builder and service endpoints
+- Feed management with detail panels and CRUD operations
+- Worker jobs monitoring with filtering and detail view
+- Rules management with drag-and-drop and JSON preview
+- Mobile-responsive design with bottom navigation
+- Detail panels for schedules and feeds with edit/delete
+
+Schedule Page:
+- User-friendly cron expression builder with presets
+- Service-specific endpoint dropdowns (Worker, MCP, Backend API)
+- Human-readable cron descriptions
+- Advanced cron builder for custom expressions
+- Detail panel with edit mode and safe delete
+- Execute and toggle schedule status
+
+Feeds Page:
+- View all feed configurations
+- Detail panel with all feed fields
+- Password fields with eye toggle for API keys/secrets
+- Edit mode for updating feed settings
+- Safe delete with double confirmation
+- Mobile-responsive with floating action buttons
+
+Workers/Jobs Page:
+- Real-time job monitoring
+- Status and date filtering (Today, Yesterday, Custom Range)
+- Job details panel with results and timeline
+- Duration calculations and retry functionality
+- Complete job metadata display
+
+Rules Page:
+- Drag-and-drop priority ordering
+- Feed and rule type tab navigation
+- Template selector for new rule types
+- JSON configuration preview per feed
+- Detail panel for rule editing
+- Support for pricing, origin, scoring, filter, and generic rules
+
+Dashboard:
+- Real-time data from API
+- Schedule and feed statistics
+- Recent schedules overview
+- Feed status monitoring
+
+Mobile Optimization:
+- Hamburger menu with slide-in sidebar
+- Bottom navigation bar for main pages
+- Floating action buttons in detail panels
+- Responsive spacing and text sizes
+- Touch-friendly button sizes
+
+API Integration:
+- API Gateway connection for schedules
+- PostgREST for feeds and workers (read)
+- Supabase for rules
+- CORS proxy for REST endpoints
+- Proper authentication with API keys
+
+Technical:
+- Next.js 16 with App Router
+- TypeScript for type safety
+- TanStack Query for data fetching
+- Tailwind CSS for styling
+- Custom hooks for state management
+- Component-based architecture
+- Environment variable configuration
+
