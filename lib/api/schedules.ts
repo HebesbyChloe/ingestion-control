@@ -1,5 +1,3 @@
-import { apiClient } from './client';
-
 export interface Schedule {
   id: number;
   tenant_id: number;
@@ -83,10 +81,13 @@ export const schedulesApi = {
     if (!response.ok) throw new Error('Failed to delete schedule');
   },
 
-  // Execute schedule manually (still use apiClient for this special action)
+  // Execute schedule manually
   execute: async (id: number): Promise<any> => {
-    const response = await apiClient.post(`/scheduler/schedules/${id}/execute`);
-    return response.data;
+    const response = await fetch(`/api/schedules/execute?id=${id}`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to execute schedule');
+    return response.json();
   },
 };
 
