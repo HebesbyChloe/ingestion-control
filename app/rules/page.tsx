@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { rulesApi, type IngestionRule, type RuleType, type CreateRuleInput } from '@/lib/api/rules';
+import { rulesApi, type IngestionRule, type RuleType, type CreateRuleInput, type PricingRuleConfig, type OriginRuleConfig, type ScoringRuleConfig } from '@/lib/api/rules';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
