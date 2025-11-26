@@ -1,15 +1,19 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
 import { useState } from 'react';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { Badge } from './ui/badge';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, profile, loading, signOut, isAdmin } = useSupabaseAuth();
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
@@ -17,7 +21,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers' },
     { id: 'rules', label: 'Rules', icon: Scale, href: '/rules' },
     { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds' },
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin Users', icon: Shield, href: '/admin/users' }] : []),
   ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
+  const getInitials = (name: string | null, email: string) => {
+    if (name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return email.slice(0, 2).toUpperCase();
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'staff':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
 
   const getActivePage = () => {
     if (pathname === '/') return 'dashboard';
@@ -87,17 +119,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="p-4 border-t border-slate-200">
+          <div className="p-4 border-t border-slate-200 space-y-3">
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border border-indigo-200">
-                <span className="text-xs font-bold text-indigo-600">JD</span>
+                <span className="text-xs font-bold text-indigo-600">
+                  {loading ? '...' : getInitials(profile?.full_name || null, user?.email || '')}
+                </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">Admin User</p>
-                <p className="text-xs text-slate-500 truncate">admin@ingest.ai</p>
+                <p className="text-sm font-medium text-slate-900 truncate">
+                  {loading ? 'Loading...' : profile?.full_name || 'User'}
+                </p>
+                <p className="text-xs text-slate-500 truncate">
+                  {loading ? '...' : user?.email}
+                </p>
+                {profile && (
+                  <Badge className={cn('mt-1 text-[10px] px-1.5 py-0', getRoleBadgeColor(profile.role))}>
+                    {profile.role}
+                  </Badge>
+                )}
               </div>
-              <Settings className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-900 transition-colors" />
             </div>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="w-full justify-start gap-2 text-slate-600 hover:text-red-600 hover:bg-red-50"
+              size="sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="text-sm">Sign Out</span>
+            </Button>
           </div>
         </aside>
 

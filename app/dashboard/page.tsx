@@ -5,8 +5,13 @@ import { Calendar, Database, CheckCircle, AlertCircle, Loader2 } from 'lucide-re
 import { useQuery } from '@tanstack/react-query';
 import { schedulesApi } from '@/lib/api/schedules';
 import { feedsApi } from '@/lib/api/feeds';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/components/ui/utils';
 
 export default function DashboardPage() {
+  const { profile, loading: authLoading } = useSupabaseAuth();
+
   // Fetch real data from APIs
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
     queryKey: ['schedules'],
@@ -28,12 +33,41 @@ export default function DashboardPage() {
   
   const isLoading = schedulesLoading || feedsLoading;
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'staff':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="border-b bg-white">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2">Overview of ingestion system</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {authLoading ? 'Dashboard' : `${getGreeting()}, ${profile?.full_name || 'User'}!`}
+              </h1>
+              <p className="text-gray-600 mt-2">Overview of ingestion system</p>
+            </div>
+            {profile && !authLoading && (
+              <Badge className={cn('text-sm px-3 py-1', getRoleBadgeColor(profile.role))}>
+                {profile.role.toUpperCase()}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
