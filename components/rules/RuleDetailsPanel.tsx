@@ -252,12 +252,12 @@ export default function RuleDetailsPanel({ rule, isOpen, onClose, onSave, select
                 
                 // For pricing rules, show source_field and target_field first
                 if (selectedRuleType === 'pricing') {
-                  const priorityFields = ['source_field', 'target_field'];
-                  const priorityEntries = priorityFields
-                    .filter(key => key in config)
-                    .map(key => [key, config[key]]);
-                  const otherEntries = entries.filter(([key]) => !priorityFields.includes(key));
-                  entries = [...priorityEntries, ...otherEntries];
+                const priorityFields = ['source_field', 'target_field'];
+                const priorityEntries: [string, any][] = priorityFields
+                  .filter(key => key in config)
+                  .map(key => [key, config[key]] as [string, any]);
+                const otherEntries = entries.filter(([key]) => !priorityFields.includes(key));
+                entries = [...priorityEntries, ...otherEntries];
                 }
                 
                 return entries.map(([key, value]) => {

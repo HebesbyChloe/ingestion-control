@@ -75,7 +75,7 @@ export const rulesApi = {
     }
 
     const data = await response.json();
-    const uniqueKeys = [...new Set(data.map((item: any) => item.feed_key))];
+    const uniqueKeys = [...new Set(data.map((item: any) => item.feed_key))] as string[];
     return uniqueKeys.sort();
   },
 
@@ -139,7 +139,7 @@ export const rulesApi = {
     }
 
     const data = await response.json();
-    const uniqueTypes = [...new Set(data.map((item: any) => item.rule_type))];
+    const uniqueTypes = [...new Set(data.map((item: any) => item.rule_type))] as string[];
     return uniqueTypes.sort();
   },
 
