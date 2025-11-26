@@ -11,11 +11,15 @@ export default function DashboardPage() {
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
     queryKey: ['schedules'],
     queryFn: () => schedulesApi.getAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch when switching tabs
   });
 
   const { data: feeds = [], isLoading: feedsLoading } = useQuery({
     queryKey: ['feeds'],
     queryFn: () => feedsApi.getAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch when switching tabs
   });
 
   const activeSchedules = schedules.filter((s) => s.enabled).length;

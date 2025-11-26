@@ -37,6 +37,8 @@ export default function FeedsPage() {
   const { data: feeds = [], isLoading, error, refetch } = useQuery({
     queryKey: ['feeds'],
     queryFn: () => feedsApi.getAll(),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false, // Only refetch on manual action
   });
 
   // Update mutation

@@ -36,38 +36,54 @@ export interface UpdateScheduleInput extends Partial<CreateScheduleInput> {
 }
 
 export const schedulesApi = {
-  // Get all schedules
+  // Get all schedules (via Next.js API proxy)
   getAll: async (tenantId?: number): Promise<Schedule[]> => {
-    const params = tenantId ? { tenant_id: tenantId } : {};
-    const response = await apiClient.get('/scheduler/schedules', { params });
-    return response.data;
+    const params = new URLSearchParams(tenantId ? { tenant_id: tenantId.toString() } : {});
+    const response = await fetch(`/api/schedules?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch schedules');
+    return response.json();
   },
 
   // Get schedule by ID
   getById: async (id: number): Promise<Schedule> => {
-    const response = await apiClient.get(`/scheduler/schedules/${id}`);
-    return response.data;
+    const response = await fetch(`/api/schedules?id=${id}`);
+    if (!response.ok) throw new Error('Failed to fetch schedule');
+    return response.json();
   },
 
   // Create schedule
   create: async (data: CreateScheduleInput): Promise<Schedule> => {
-    const response = await apiClient.post('/scheduler/schedules', data);
+    const response = await fetch('/api/schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to create schedule');
+    const result = await response.json();
     // API returns array, get first item
-    return Array.isArray(response.data) ? response.data[0] : response.data;
+    return Array.isArray(result) ? result[0] : result;
   },
 
   // Update schedule
   update: async (id: number, data: Partial<CreateScheduleInput>): Promise<Schedule> => {
-    const response = await apiClient.put(`/scheduler/schedules/${id}`, data);
-    return response.data;
+    const response = await fetch(`/api/schedules?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update schedule');
+    return response.json();
   },
 
   // Delete schedule
   delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/scheduler/schedules/${id}`);
+    const response = await fetch(`/api/schedules?id=${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete schedule');
   },
 
-  // Execute schedule manually
+  // Execute schedule manually (still use apiClient for this special action)
   execute: async (id: number): Promise<any> => {
     const response = await apiClient.post(`/scheduler/schedules/${id}/execute`);
     return response.data;

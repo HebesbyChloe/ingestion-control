@@ -77,6 +77,8 @@ export default function WorkersPage() {
   // Fetch workers data
   const { data: workers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['workers', selectedStatus, dateFilter, customDateFrom, customDateTo],
+    staleTime: 1 * 60 * 1000, // 1 minute (workers change frequently)
+    refetchOnWindowFocus: false, // Only refetch on manual refresh
     queryFn: () => {
       const dateRange = getDateRange();
       const filters = {

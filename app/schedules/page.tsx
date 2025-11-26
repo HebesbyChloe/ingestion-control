@@ -21,6 +21,8 @@ export default function SchedulesPage() {
   const { data: schedules = [], isLoading, error } = useQuery({
     queryKey: ['schedules'],
     queryFn: () => schedulesApi.getAll(),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false, // Only refetch on manual action
   });
 
   // Update mutation
