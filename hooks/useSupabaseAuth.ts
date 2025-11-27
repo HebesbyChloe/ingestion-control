@@ -28,28 +28,54 @@ export function useSupabaseAuth() {
     const fetchProfile = async (userId: string, retryCount = 0): Promise<void> => {
       if (!isMounted) return;
       
-      console.log(`Fetching profile for user ID: ${userId} (attempt ${retryCount + 1})`);
+      console.log(`[Profile Fetch] Starting fetch for user ID: ${userId} (attempt ${retryCount + 1})`);
+      console.log(`[Profile Fetch] Using Supabase client:`, supabase);
+      console.log(`[Profile Fetch] Supabase URL:`, process.env.NEXT_PUBLIC_SUPABASE_URL);
       
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
+      try {
+        const queryStart = Date.now();
+        console.log(`[Profile Fetch] Executing query: profiles.select('*').eq('id', '${userId}').single()`);
         
-        // Retry up to 3 times with delay if RLS error or network issue
-        if (retryCount < 3 && (profileError.code === 'PGRST116' || profileError.code === 'PGRST301')) {
-          console.log('Retrying profile fetch in 500ms...');
-          await new Promise(resolve => setTimeout(resolve, 500));
-          return fetchProfile(userId, retryCount + 1);
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        const queryTime = Date.now() - queryStart;
+        console.log(`[Profile Fetch] Query completed in ${queryTime}ms`);
+
+        if (profileError) {
+          console.error('[Profile Fetch] Error details:', {
+            message: profileError.message,
+            code: profileError.code,
+            details: profileError.details,
+            hint: profileError.hint,
+            fullError: profileError
+          });
+          
+          // Retry up to 3 times with delay if RLS error or network issue
+          if (retryCount < 3 && (profileError.code === 'PGRST116' || profileError.code === 'PGRST301' || profileError.code === '42501')) {
+            console.log(`[Profile Fetch] Retrying in 500ms... (RLS/Network error: ${profileError.code})`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return fetchProfile(userId, retryCount + 1);
+          }
+          
+          // If no retry, set profile to null and continue
+          if (!isMounted) return;
+          console.warn('[Profile Fetch] Failed after retries, setting profile to null');
+          setProfile(null);
+          return;
         }
+        
+        if (!isMounted) return;
+        console.log('[Profile Fetch] ✅ Success! Profile data:', profileData);
+        setProfile(profileData || null);
+      } catch (error) {
+        console.error('[Profile Fetch] ❌ Unexpected error:', error);
+        if (!isMounted) return;
+        setProfile(null);
       }
-      
-      if (!isMounted) return;
-      console.log('Profile data received:', profileData);
-      setProfile(profileData || null);
     };
 
     // Get initial session
