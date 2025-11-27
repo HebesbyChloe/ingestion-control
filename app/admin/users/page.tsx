@@ -49,24 +49,16 @@ export default function AdminUsersPage() {
 
   // Update roleId when roles are loaded
   useEffect(() => {
-    if (defaultRoleId && !newUser.roleId) {
-      setNewUser(prev => ({ ...prev, roleId: defaultRoleId }));
+    if (roles.length > 0 && !newUser.roleId) {
+      const userRole = roles.find(r => r.name === 'user');
+      if (userRole) {
+        setNewUser(prev => ({ ...prev, roleId: userRole.id }));
+      }
     }
-  }, [defaultRoleId]);
+  }, [roles, newUser.roleId]);
   const [addUserError, setAddUserError] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  // Fetch all roles
-  const { data: roles = [] } = useQuery({
-    queryKey: ['roles'],
-    queryFn: () => rolesApi.getAll(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-  });
-
-  // Get default role (user)
-  const defaultRoleId = roles.find(r => r.name === 'user')?.id || '';
 
   // Fetch all profiles
   const { data: profiles = [], isLoading } = useQuery({
