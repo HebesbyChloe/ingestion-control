@@ -33,10 +33,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     try {
-      await signOut();
-      router.push('/login');
+      console.log('Logout button clicked');
+      // Redirect to logout page for proper session clearing
+      window.location.href = '/logout';
     } catch (error) {
       console.error('Error logging out:', error);
+      // Fallback: try direct logout
+      try {
+        await signOut();
+        window.location.href = '/login';
+      } catch (fallbackError) {
+        console.error('Fallback logout error:', fallbackError);
+      }
     }
   };
 

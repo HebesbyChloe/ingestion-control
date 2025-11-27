@@ -22,10 +22,14 @@ export function useSupabaseAuth() {
   const supabase = createClient();
 
   useEffect(() => {
+    let isMounted = true;
+
     // Get initial session
     const getSession = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!isMounted) return;
         setUser(user);
 
         if (user) {
@@ -45,13 +49,16 @@ export function useSupabaseAuth() {
             console.error('Error details:', profileError.details);
           }
           
+          if (!isMounted) return;
           console.log('Profile data received:', profileData);
           setProfile(profileData);
         }
       } catch (error) {
         console.error('Error loading session:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -60,6 +67,17 @@ export function useSupabaseAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        
+        if (!isMounted) return;
+        
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+
         setUser(session?.user ?? null);
 
         if (session?.user) {
@@ -74,18 +92,24 @@ export function useSupabaseAuth() {
             console.error('Error fetching profile on auth change:', profileError);
           }
           
+          if (!isMounted) return;
           console.log('Profile loaded on auth change:', profileData);
           setProfile(profileData);
         } else {
           setProfile(null);
         }
+        
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     );
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({

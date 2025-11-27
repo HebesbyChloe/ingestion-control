@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 export function useRulesData(tenantId: number, selectedFeed: string, selectedRuleType: string) {
   // Initialize custom feeds/types from localStorage
   const [customFeeds, setCustomFeeds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
     try {
       const storedFeeds = localStorage.getItem('customFeeds');
       return storedFeeds ? JSON.parse(storedFeeds) : [];
@@ -22,6 +23,7 @@ export function useRulesData(tenantId: number, selectedFeed: string, selectedRul
   });
   
   const [customRuleTypes, setCustomRuleTypes] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
     try {
       const storedRuleTypes = localStorage.getItem('customRuleTypes');
       return storedRuleTypes ? JSON.parse(storedRuleTypes) : [];
