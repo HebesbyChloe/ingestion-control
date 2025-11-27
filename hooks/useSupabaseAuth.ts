@@ -24,6 +24,34 @@ export function useSupabaseAuth() {
     let isMounted = true;
     const supabase = createClient(); // Get singleton instance
 
+    // Fetch profile with retry logic
+    const fetchProfile = async (userId: string, retryCount = 0): Promise<void> => {
+      if (!isMounted) return;
+      
+      console.log(`Fetching profile for user ID: ${userId} (attempt ${retryCount + 1})`);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        
+        // Retry up to 3 times with delay if RLS error or network issue
+        if (retryCount < 3 && (profileError.code === 'PGRST116' || profileError.code === 'PGRST301')) {
+          console.log('Retrying profile fetch in 500ms...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return fetchProfile(userId, retryCount + 1);
+        }
+      }
+      
+      if (!isMounted) return;
+      console.log('Profile data received:', profileData);
+      setProfile(profileData || null);
+    };
+
     // Get initial session
     const getSession = async () => {
       try {
@@ -33,25 +61,7 @@ export function useSupabaseAuth() {
         setUser(user);
 
         if (user) {
-          console.log('Fetching profile for user ID:', user.id);
-          
-          // Fetch user profile
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            console.error('Error code:', profileError.code);
-            console.error('Error message:', profileError.message);
-            console.error('Error details:', profileError.details);
-          }
-          
-          if (!isMounted) return;
-          console.log('Profile data received:', profileData);
-          setProfile(profileData);
+          await fetchProfile(user.id);
         }
       } catch (error) {
         console.error('Error loading session:', error);
@@ -81,20 +91,9 @@ export function useSupabaseAuth() {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch updated profile
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error fetching profile on auth change:', profileError);
-          }
-          
-          if (!isMounted) return;
-          console.log('Profile loaded on auth change:', profileData);
-          setProfile(profileData);
+          // Small delay to ensure auth context is ready
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await fetchProfile(session.user.id);
         } else {
           setProfile(null);
         }
