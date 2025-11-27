@@ -22,25 +22,39 @@ export function useSupabaseAuth() {
 
   useEffect(() => {
     let isMounted = true;
+    let isFetching = false; // Prevent duplicate fetches
     const supabase = createClient(); // Get singleton instance
 
-    // Fetch profile with retry logic
+    // Fetch profile with retry logic and timeout
     const fetchProfile = async (userId: string, retryCount = 0): Promise<void> => {
-      if (!isMounted) return;
+      if (!isMounted || isFetching) {
+        console.log(`[Profile Fetch] Skipping - already fetching or unmounted`);
+        return;
+      }
       
+      isFetching = true;
       console.log(`[Profile Fetch] Starting fetch for user ID: ${userId} (attempt ${retryCount + 1})`);
-      console.log(`[Profile Fetch] Using Supabase client:`, supabase);
       console.log(`[Profile Fetch] Supabase URL:`, process.env.NEXT_PUBLIC_SUPABASE_URL);
       
       try {
         const queryStart = Date.now();
         console.log(`[Profile Fetch] Executing query: profiles.select('*').eq('id', '${userId}').single()`);
         
-        const { data: profileData, error: profileError } = await supabase
+        // Add timeout wrapper (10 seconds max)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile fetch timeout after 10s')), 10000)
+        );
+        
+        const queryPromise = supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
+
+        const { data: profileData, error: profileError } = await Promise.race([
+          queryPromise,
+          timeoutPromise
+        ]) as any;
 
         const queryTime = Date.now() - queryStart;
         console.log(`[Profile Fetch] Query completed in ${queryTime}ms`);
@@ -68,13 +82,33 @@ export function useSupabaseAuth() {
           return;
         }
         
-        if (!isMounted) return;
+        if (!isMounted) {
+          isFetching = false;
+          return;
+        }
         console.log('[Profile Fetch] ✅ Success! Profile data:', profileData);
         setProfile(profileData || null);
-      } catch (error) {
-        console.error('[Profile Fetch] ❌ Unexpected error:', error);
-        if (!isMounted) return;
+        isFetching = false;
+      } catch (error: any) {
+        console.error('[Profile Fetch] ❌ Error:', error);
+        
+        // Handle timeout
+        if (error?.message?.includes('timeout')) {
+          console.error('[Profile Fetch] Query timed out - this might be an RLS or network issue');
+          if (retryCount < 2) {
+            console.log(`[Profile Fetch] Retrying after timeout (attempt ${retryCount + 1})...`);
+            isFetching = false;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return fetchProfile(userId, retryCount + 1);
+          }
+        }
+        
+        if (!isMounted) {
+          isFetching = false;
+          return;
+        }
         setProfile(null);
+        isFetching = false;
       }
     };
 
@@ -88,10 +122,11 @@ export function useSupabaseAuth() {
 
         if (user) {
           await fetchProfile(user.id);
+        } else {
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error loading session:', error);
-      } finally {
         if (isMounted) {
           setLoading(false);
         }
@@ -108,19 +143,24 @@ export function useSupabaseAuth() {
         if (!isMounted) return;
         
         if (event === 'SIGNED_OUT') {
+          isFetching = false;
           setUser(null);
           setProfile(null);
           setLoading(false);
           return;
         }
 
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
+        // Only fetch profile on SIGNED_IN, not on TOKEN_REFRESHED
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
           // Small delay to ensure auth context is ready
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 200));
           await fetchProfile(session.user.id);
+        } else if (session?.user) {
+          // For other events, just update user but don't refetch profile
+          setUser(session.user);
         } else {
+          setUser(null);
           setProfile(null);
         }
         
