@@ -492,7 +492,7 @@ export default function AdminUsersPage() {
                 <Label htmlFor="role">Role</Label>
                 <Select
                   value={newUser.role}
-                  onValueChange={(value: 'user' | 'staff' | 'admin') => setNewUser({ ...newUser, role: value })}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value as 'user' | 'staff' | 'admin' })}
                 >
                   <SelectTrigger disabled={createUserMutation.isPending}>
                     <SelectValue />
