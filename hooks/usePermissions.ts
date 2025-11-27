@@ -33,6 +33,7 @@ const getFallbackPermissions = (role: string) => {
     canViewWorkers: ['user', 'developer', 'admin', 'staff'].includes(roleLower),
     
     canManageUsers: roleLower === 'admin',
+    canManageRoles: roleLower === 'admin',
   };
 };
 
