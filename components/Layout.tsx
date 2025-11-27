@@ -24,7 +24,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers', canAccess: permissions.canAccessWorkers },
     { id: 'rules', label: 'Rules', icon: Scale, href: '/rules', canAccess: permissions.canAccessRules },
     { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds', canAccess: permissions.canAccessFeeds },
-    { id: 'admin', label: 'Admin Users', icon: Shield, href: '/admin/users', canAccess: permissions.canAccessAdmin },
+    { id: 'admin-users', label: 'Admin Users', icon: Shield, href: '/admin/users', canAccess: permissions.canManageUsers },
+    { id: 'admin-roles', label: 'Roles', icon: Settings, href: '/admin/roles', canAccess: permissions.canManageRoles },
   ];
 
   // Filter navigation items based on permissions
@@ -63,6 +64,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const getActivePage = () => {
     if (pathname === '/') return 'dashboard';
+    if (pathname.startsWith('/admin/roles')) return 'admin-roles';
+    if (pathname.startsWith('/admin/users')) return 'admin-users';
+    if (pathname.startsWith('/admin')) return 'admin-users';
     return pathname.replace('/', '') || 'dashboard';
   };
 

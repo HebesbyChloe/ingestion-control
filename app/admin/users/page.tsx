@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { rolesApi, type Role } from '@/lib/api/roles';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +19,7 @@ interface Profile {
   email: string;
   full_name: string | null;
   role: 'user' | 'developer' | 'accountant' | 'admin' | 'staff';
+  role_id: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -27,15 +29,44 @@ export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const supabase = createClient();
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  // Fetch all roles
+  const { data: roles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => rolesApi.getAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Get default role (user)
+  const defaultRoleId = roles.find(r => r.name === 'user')?.id || '';
+
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
     fullName: '',
-    role: 'user' as 'user' | 'developer' | 'accountant' | 'admin' | 'staff',
+    roleId: defaultRoleId,
   });
+
+  // Update roleId when roles are loaded
+  useEffect(() => {
+    if (defaultRoleId && !newUser.roleId) {
+      setNewUser(prev => ({ ...prev, roleId: defaultRoleId }));
+    }
+  }, [defaultRoleId]);
   const [addUserError, setAddUserError] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Fetch all roles
+  const { data: roles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => rolesApi.getAll(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Get default role (user)
+  const defaultRoleId = roles.find(r => r.name === 'user')?.id || '';
 
   // Fetch all profiles
   const { data: profiles = [], isLoading } = useQuery({
@@ -53,12 +84,25 @@ export default function AdminUsersPage() {
     refetchOnWindowFocus: false,
   });
 
+  // Get role name from role_id or fallback to role field
+  const getRoleName = (profile: Profile): string => {
+    if (profile.role_id) {
+      const role = roles.find(r => r.id === profile.role_id);
+      return role?.name || profile.role;
+    }
+    return profile.role;
+  };
+
   // Update role mutation
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    mutationFn: async ({ userId, roleId }: { userId: string; roleId: string }) => {
+      // Get role name from role_id
+      const role = roles.find(r => r.id === roleId);
+      if (!role) throw new Error('Role not found');
+
       const { error } = await supabase
         .from('profiles')
-        .update({ role })
+        .update({ role_id: roleId, role: role.name })
         .eq('id', userId);
 
       if (error) throw error;
@@ -132,6 +176,10 @@ export default function AdminUsersPage() {
       if (authError) throw authError;
       if (!authData.user) throw new Error('User creation failed');
 
+      // Get role name from role_id
+      const role = roles.find(r => r.id === userData.roleId);
+      if (!role) throw new Error('Role not found');
+
       // Create profile with specified role
       const { error: profileError } = await supabase
         .from('profiles')
@@ -139,7 +187,8 @@ export default function AdminUsersPage() {
           id: authData.user.id,
           email: userData.email,
           full_name: userData.fullName,
-          role: userData.role,
+          role_id: userData.roleId,
+          role: role.name,
           is_active: true,
         });
 
@@ -148,7 +197,8 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowAddUserModal(false);
-      setNewUser({ email: '', password: '', fullName: '', role: 'user' });
+      const defaultRole = roles.find(r => r.name === 'user');
+      setNewUser({ email: '', password: '', fullName: '', roleId: defaultRole?.id || '' });
       setAddUserError(null);
     },
     onError: (error: any) => {
@@ -289,21 +339,21 @@ export default function AdminUsersPage() {
                                     )}
                                   </Button>
                                   <Select
-                                    value={profile.role}
-                                    onValueChange={(newRole) => updateRoleMutation.mutate({
+                                    value={profile.role_id || profile.role}
+                                    onValueChange={(roleId) => updateRoleMutation.mutate({
                                       userId: profile.id,
-                                      role: newRole,
+                                      roleId,
                                     })}
                                   >
                                     <SelectTrigger className="w-full sm:w-32 text-xs sm:text-sm" disabled={updateRoleMutation.isPending}>
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="user">User</SelectItem>
-                                      <SelectItem value="developer">Developer</SelectItem>
-                                      <SelectItem value="accountant">Accountant</SelectItem>
-                                      <SelectItem value="staff">Staff</SelectItem>
-                                      <SelectItem value="admin">Admin</SelectItem>
+                                      {roles.map((role) => (
+                                        <SelectItem key={role.id} value={role.id}>
+                                          {role.name}
+                                        </SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
                                   <Button
@@ -389,21 +439,21 @@ export default function AdminUsersPage() {
                               <TableCell>
                                 <div className="flex flex-col sm:flex-row gap-2">
                                   <Select
-                                    value={profile.role}
-                                    onValueChange={(newRole) => updateRoleMutation.mutate({
+                                    value={profile.role_id || profile.role}
+                                    onValueChange={(roleId) => updateRoleMutation.mutate({
                                       userId: profile.id,
-                                      role: newRole,
+                                      roleId,
                                     })}
                                   >
                                     <SelectTrigger className="w-full sm:w-32 text-xs sm:text-sm" disabled={updateRoleMutation.isPending}>
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="user">User</SelectItem>
-                                      <SelectItem value="developer">Developer</SelectItem>
-                                      <SelectItem value="accountant">Accountant</SelectItem>
-                                      <SelectItem value="staff">Staff</SelectItem>
-                                      <SelectItem value="admin">Admin</SelectItem>
+                                      {roles.map((role) => (
+                                        <SelectItem key={role.id} value={role.id}>
+                                          {role.name}
+                                        </SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
                                   {!profile.is_active && (
@@ -499,16 +549,23 @@ export default function AdminUsersPage() {
               <div>
                 <Label htmlFor="role">Role</Label>
                 <Select
-                  value={newUser.role}
-                  onValueChange={(value) => setNewUser({ ...newUser, role: value as 'user' | 'staff' | 'admin' })}
+                  value={newUser.roleId}
+                  onValueChange={(roleId) => setNewUser({ ...newUser, roleId })}
                 >
                   <SelectTrigger disabled={createUserMutation.isPending}>
-                    <SelectValue />
+                    <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                        {role.description && (
+                          <span className="text-xs text-slate-500 ml-2">
+                            - {role.description}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
