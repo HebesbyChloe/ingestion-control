@@ -19,10 +19,10 @@ export function useSupabaseAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     let isMounted = true;
+    const supabase = createClient(); // Get singleton instance
 
     // Get initial session
     const getSession = async () => {
@@ -109,9 +109,10 @@ export function useSupabaseAuth() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []); // Empty dependency array - singleton client is stable
 
   const signIn = async (email: string, password: string) => {
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -121,6 +122,7 @@ export function useSupabaseAuth() {
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    const supabase = createClient();
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -149,6 +151,7 @@ export function useSupabaseAuth() {
   };
 
   const signOut = async () => {
+    const supabase = createClient();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
