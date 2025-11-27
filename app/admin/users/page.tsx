@@ -17,7 +17,7 @@ interface Profile {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'user' | 'staff' | 'admin';
+  role: 'user' | 'developer' | 'accountant' | 'admin' | 'staff';
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -31,7 +31,7 @@ export default function AdminUsersPage() {
     email: '',
     password: '',
     fullName: '',
-    role: 'user' as 'user' | 'staff' | 'admin',
+    role: 'user' as 'user' | 'developer' | 'accountant' | 'admin' | 'staff',
   });
   const [addUserError, setAddUserError] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
@@ -166,6 +166,10 @@ export default function AdminUsersPage() {
     switch (role) {
       case 'admin':
         return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'developer':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'accountant':
+        return 'bg-orange-100 text-orange-700 border-orange-200';
       case 'staff':
         return 'bg-blue-100 text-blue-700 border-blue-200';
       default:
@@ -296,6 +300,8 @@ export default function AdminUsersPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="user">User</SelectItem>
+                                      <SelectItem value="developer">Developer</SelectItem>
+                                      <SelectItem value="accountant">Accountant</SelectItem>
                                       <SelectItem value="staff">Staff</SelectItem>
                                       <SelectItem value="admin">Admin</SelectItem>
                                     </SelectContent>
@@ -394,6 +400,8 @@ export default function AdminUsersPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="user">User</SelectItem>
+                                      <SelectItem value="developer">Developer</SelectItem>
+                                      <SelectItem value="accountant">Accountant</SelectItem>
                                       <SelectItem value="staff">Staff</SelectItem>
                                       <SelectItem value="admin">Admin</SelectItem>
                                     </SelectContent>

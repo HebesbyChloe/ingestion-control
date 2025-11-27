@@ -8,7 +8,7 @@ interface Profile {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'user' | 'staff' | 'admin';
+  role: 'user' | 'developer' | 'accountant' | 'admin' | 'staff';
   is_active: boolean;
   created_at: string;
   updated_at: string;

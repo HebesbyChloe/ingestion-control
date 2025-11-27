@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { cn } from './ui/utils';
 import { useState } from 'react';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Badge } from './ui/badge';
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -14,15 +15,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, profile, loading, signOut, isAdmin } = useSupabaseAuth();
+  const { permissions } = usePermissions();
   
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-    { id: 'schedules', label: 'Schedules', icon: CalendarClock, href: '/schedules' },
-    { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers' },
-    { id: 'rules', label: 'Rules', icon: Scale, href: '/rules' },
-    { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds' },
-    ...(isAdmin ? [{ id: 'admin', label: 'Admin Users', icon: Shield, href: '/admin/users' }] : []),
+  // Define all navigation items with role requirements
+  const allNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', canAccess: true },
+    { id: 'schedules', label: 'Schedules', icon: CalendarClock, href: '/schedules', canAccess: permissions.canAccessSchedules },
+    { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers', canAccess: permissions.canAccessWorkers },
+    { id: 'rules', label: 'Rules', icon: Scale, href: '/rules', canAccess: permissions.canAccessRules },
+    { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds', canAccess: permissions.canAccessFeeds },
+    { id: 'admin', label: 'Admin Users', icon: Shield, href: '/admin/users', canAccess: permissions.canAccessAdmin },
   ];
+
+  // Filter navigation items based on permissions
+  const navItems = allNavItems.filter(item => item.canAccess);
 
   const handleLogout = async () => {
     try {
@@ -44,6 +50,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     switch (role) {
       case 'admin':
         return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'developer':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'accountant':
+        return 'bg-orange-100 text-orange-700 border-orange-200';
       case 'staff':
         return 'bg-blue-100 text-blue-700 border-blue-200';
       default:

@@ -31,8 +31,10 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push('/dashboard');
-        router.refresh();
+        // Wait a moment for session to be established, then redirect
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // Use window.location for a hard redirect to ensure session is loaded
+        window.location.href = '/dashboard';
       }
     } catch (err) {
       setError('An unexpected error occurred');

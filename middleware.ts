@@ -92,9 +92,30 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // Role-based route access control
+    const userRole = profile?.role || 'user';
+    
+    // Define allowed routes per role
+    const roleBasedRoutes: Record<string, string[]> = {
+      user: ['/dashboard', '/workers', '/schedules'],
+      developer: ['/dashboard', '/schedules', '/workers', '/feeds'],
+      accountant: ['/dashboard', '/rules'],
+      admin: ['/dashboard', '/feeds', '/schedules', '/workers', '/rules', '/admin'],
+      staff: ['/dashboard', '/schedules', '/workers', '/feeds'], // Legacy support
+    };
+
+    // Check if user's role has access to this route
+    const allowedRoutes = roleBasedRoutes[userRole] || [];
+    const hasAccess = allowedRoutes.some(route => pathname.startsWith(route));
+
+    if (!hasAccess) {
+      // User doesn't have access, redirect to dashboard
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
     // If accessing /admin routes, check for admin role
     if (pathname.startsWith('/admin')) {
-      if (profile?.role !== 'admin') {
+      if (userRole !== 'admin') {
         // Redirect non-admin users to dashboard
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
