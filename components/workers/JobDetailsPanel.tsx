@@ -1,9 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { X, Calendar, Clock, Play, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
+import { X, Clock, Play, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
 import { Worker } from '@/lib/api/workers';
 
 interface JobDetailsPanelProps {

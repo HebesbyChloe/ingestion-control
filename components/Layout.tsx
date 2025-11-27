@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, User } from 'lucide-react';
+import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
 import { useState } from 'react';
@@ -14,7 +14,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, profile, loading, signOut, isAdmin } = useSupabaseAuth();
+  const { user, profile, loading, signOut } = useSupabaseAuth();
   const { permissions } = usePermissions();
   
   // Define all navigation items with role requirements

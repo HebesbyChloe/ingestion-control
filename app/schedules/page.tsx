@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Play, Pause, Trash2, Edit, Clock, RefreshCw, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulesApi, Schedule, CreateScheduleInput } from '@/lib/api/schedules';
 import { SERVICE_ENDPOINTS } from '@/lib/schedules/serviceEndpoints';
@@ -180,12 +180,17 @@ function ScheduleCard({
 }) {
   const status = schedule.enabled ? 'active' : 'paused';
   
-  const lastRun = schedule.last_run 
-    ? `${Math.floor((Date.now() - new Date(schedule.last_run).getTime()) / 60000)} mins ago`
-    : 'Never';
-  const nextRun = schedule.next_run 
-    ? `${Math.floor((new Date(schedule.next_run).getTime() - Date.now()) / 60000)} mins`
-    : schedule.enabled ? 'Calculating...' : 'N/A';
+  const now = useMemo(() => Date.now(), [schedule.last_run, schedule.next_run]);
+  
+  const lastRun = useMemo(() => {
+    if (!schedule.last_run) return 'Never';
+    return `${Math.floor((now - new Date(schedule.last_run).getTime()) / 60000)} mins ago`;
+  }, [schedule.last_run, now]);
+  
+  const nextRun = useMemo(() => {
+    if (!schedule.next_run) return schedule.enabled ? 'Calculating...' : 'N/A';
+    return `${Math.floor((new Date(schedule.next_run).getTime() - now) / 60000)} mins`;
+  }, [schedule.next_run, schedule.enabled, now]);
 
   return (
     <Card 

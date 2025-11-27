@@ -167,7 +167,7 @@ export function FeedTabs({
               <PopoverContent className="w-80">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="copy-to-feed-key">Copy "{selectedFeed}" to:</Label>
+                    <Label htmlFor="copy-to-feed-key">Copy &quot;{selectedFeed}&quot; to:</Label>
                     <Input
                       id="copy-to-feed-key"
                       value={copyToFeedKey}

@@ -39,7 +39,6 @@ const getFallbackPermissions = (role: string) => {
 
 export function usePermissions() {
   const { profile, loading: authLoading } = useSupabaseAuth();
-  const supabase = createClient();
   
   // Get role ID (prefer role_id, fallback to role name)
   const roleId = profile?.role_id;

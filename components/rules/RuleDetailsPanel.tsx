@@ -26,7 +26,7 @@ export default function RuleDetailsPanel({ rule, isOpen, onClose, onSave, select
   useEffect(() => {
     if (rule) {
       // Initialize config with defaults for pricing rules
-      let config = { ...rule.config };
+      const config = { ...rule.config };
       
       // Ensure pricing rules have source_field and target_field
       if (selectedRuleType === 'pricing') {

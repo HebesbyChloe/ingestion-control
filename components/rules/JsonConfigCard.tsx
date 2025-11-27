@@ -49,7 +49,7 @@ export function JsonConfigCard({
           <div>
             <CardTitle className="text-slate-900">Feed Configuration (JSON)</CardTitle>
             <CardDescription className="text-slate-500">
-              Complete configuration for feed "{selectedFeed}" - All enabled rules (pricing, origin, scoring, filter)
+              Complete configuration for feed &quot;{selectedFeed}&quot; - All enabled rules (pricing, origin, scoring, filter)
             </CardDescription>
           </div>
           <Button

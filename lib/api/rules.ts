@@ -1,5 +1,3 @@
-import { apiClient } from './client';
-
 export type RuleType = 'pricing' | 'origin' | 'scoring' | 'filter';
 
 export interface IngestionRule {

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { permissionsApi, type PermissionGroup } from '@/lib/api/permissions';
+import { permissionsApi, type Permission } from '@/lib/api/permissions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,10 +39,15 @@ export function PermissionSelector({ selectedPermissionIds, onSelectionChange }:
     refetchOnWindowFocus: false,
   });
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(selectedPermissionIds));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(selectedPermissionIds));
+  const prevPropsRef = useRef<string>(JSON.stringify(selectedPermissionIds));
 
   useEffect(() => {
-    setSelectedIds(new Set(selectedPermissionIds));
+    const currentProps = JSON.stringify(selectedPermissionIds);
+    if (prevPropsRef.current !== currentProps) {
+      prevPropsRef.current = currentProps;
+      setSelectedIds(new Set(selectedPermissionIds));
+    }
   }, [selectedPermissionIds]);
 
   const handlePermissionToggle = (permissionId: string) => {

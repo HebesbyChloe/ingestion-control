@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { rulesApi, type IngestionRule, type RuleType } from '@/lib/api/rules';
+import { rulesApi, type RuleType } from '@/lib/api/rules';
 import { useState, useEffect } from 'react';
 
 /**
@@ -10,30 +10,26 @@ import { useState, useEffect } from 'react';
  * @returns Object containing all data queries and combined feed/rule type lists
  */
 export function useRulesData(tenantId: number, selectedFeed: string, selectedRuleType: string) {
-  const [customFeeds, setCustomFeeds] = useState<string[]>([]);
-  const [customRuleTypes, setCustomRuleTypes] = useState<string[]>([]);
-
-  // Load custom feeds/types from localStorage on mount
-  useEffect(() => {
-    const storedFeeds = localStorage.getItem('customFeeds');
-    const storedRuleTypes = localStorage.getItem('customRuleTypes');
-    
-    if (storedFeeds) {
-      try {
-        setCustomFeeds(JSON.parse(storedFeeds));
-      } catch (e) {
-        console.error('Failed to parse custom feeds from localStorage', e);
-      }
+  // Initialize custom feeds/types from localStorage
+  const [customFeeds, setCustomFeeds] = useState<string[]>(() => {
+    try {
+      const storedFeeds = localStorage.getItem('customFeeds');
+      return storedFeeds ? JSON.parse(storedFeeds) : [];
+    } catch (e) {
+      console.error('Failed to parse custom feeds from localStorage', e);
+      return [];
     }
-    
-    if (storedRuleTypes) {
-      try {
-        setCustomRuleTypes(JSON.parse(storedRuleTypes));
-      } catch (e) {
-        console.error('Failed to parse custom rule types from localStorage', e);
-      }
+  });
+  
+  const [customRuleTypes, setCustomRuleTypes] = useState<string[]>(() => {
+    try {
+      const storedRuleTypes = localStorage.getItem('customRuleTypes');
+      return storedRuleTypes ? JSON.parse(storedRuleTypes) : [];
+    } catch (e) {
+      console.error('Failed to parse custom rule types from localStorage', e);
+      return [];
     }
-  }, []);
+  });
 
   // Persist custom feeds/types to localStorage
   useEffect(() => {
