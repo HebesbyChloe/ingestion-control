@@ -23,7 +23,18 @@ export function useSupabaseAuth() {
   useEffect(() => {
     let isMounted = true;
     let isFetching = false; // Prevent duplicate fetches
-    const supabase = createClient(); // Get singleton instance
+    
+    // Try to create Supabase client, handle errors gracefully
+    let supabase: ReturnType<typeof createClient>;
+    try {
+      supabase = createClient(); // Get singleton instance
+    } catch (error) {
+      console.error('Failed to create Supabase client:', error);
+      if (isMounted) {
+        setLoading(false);
+      }
+      return;
+    }
 
     // Fetch profile with retry logic and timeout
     const fetchProfile = async (userId: string, retryCount = 0): Promise<void> => {
@@ -33,17 +44,14 @@ export function useSupabaseAuth() {
       }
       
       isFetching = true;
-      console.log(`[Profile Fetch] Starting fetch for user ID: ${userId} (attempt ${retryCount + 1})`);
-      console.log(`[Profile Fetch] Supabase URL:`, process.env.NEXT_PUBLIC_SUPABASE_URL);
       
       try {
         const queryStart = Date.now();
-        console.log(`[Profile Fetch] Executing query: profiles.select('*').eq('id', '${userId}').single()`);
         
-        // Add timeout wrapper (10 seconds max)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile fetch timeout after 10s')), 10000)
-        );
+        // Add timeout wrapper (5 seconds)
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000);
+        });
         
         const queryPromise = supabase
           .from('profiles')
@@ -51,63 +59,75 @@ export function useSupabaseAuth() {
           .eq('id', userId)
           .single();
 
-        const { data: profileData, error: profileError } = await Promise.race([
-          queryPromise,
-          timeoutPromise
-        ]) as any;
+        // Use Promise.race with timeout
+        let profileData: any = null;
+        let profileError: any = null;
+        
+        try {
+          const result = await Promise.race([queryPromise, timeoutPromise]);
+          profileData = (result as any)?.data || null;
+          profileError = (result as any)?.error || null;
+        } catch (raceError: any) {
+          if (raceError?.message?.includes('timeout')) {
+            profileError = { 
+              message: 'Profile query timeout',
+              code: 'TIMEOUT'
+            };
+          } else {
+            profileError = {
+              message: raceError?.message || 'Unknown error',
+              code: raceError?.code || 'UNKNOWN'
+            };
+          }
+        }
 
         const queryTime = Date.now() - queryStart;
-        console.log(`[Profile Fetch] Query completed in ${queryTime}ms`);
-
+        
+        // Check if there's an error
         if (profileError) {
-          console.error('[Profile Fetch] Error details:', {
-            message: profileError.message,
-            code: profileError.code,
-            details: profileError.details,
-            hint: profileError.hint,
-            fullError: profileError
-          });
+
+          const errorCode = profileError?.code || profileError?.error_code;
           
-          // Retry up to 3 times with delay if RLS error or network issue
-          if (retryCount < 3 && (profileError.code === 'PGRST116' || profileError.code === 'PGRST301' || profileError.code === '42501')) {
-            console.log(`[Profile Fetch] Retrying in 500ms... (RLS/Network error: ${profileError.code})`);
+          // Handle "not found" error
+          if (errorCode === 'PGRST116' || errorCode === 'PGRST301') {
+            if (!isMounted) return;
+            setProfile(null);
+            setLoading(false);
+            isFetching = false;
+            return;
+          }
+          
+          // Retry once on timeout
+          if (retryCount < 1 && errorCode === 'TIMEOUT') {
+            isFetching = false;
             await new Promise(resolve => setTimeout(resolve, 500));
             return fetchProfile(userId, retryCount + 1);
           }
           
-          // If no retry, set profile to null and continue
+          // Failed after retries
           if (!isMounted) return;
-          console.warn('[Profile Fetch] Failed after retries, setting profile to null');
           setProfile(null);
+          setLoading(false);
+          isFetching = false;
           return;
         }
-        
+
         if (!isMounted) {
           isFetching = false;
           return;
         }
-        console.log('[Profile Fetch] ✅ Success! Profile data:', profileData);
+        
+        // Success
         setProfile(profileData || null);
+        setLoading(false);
         isFetching = false;
       } catch (error: any) {
-        console.error('[Profile Fetch] ❌ Error:', error);
-        
-        // Handle timeout
-        if (error?.message?.includes('timeout')) {
-          console.error('[Profile Fetch] Query timed out - this might be an RLS or network issue');
-          if (retryCount < 2) {
-            console.log(`[Profile Fetch] Retrying after timeout (attempt ${retryCount + 1})...`);
-            isFetching = false;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return fetchProfile(userId, retryCount + 1);
-          }
-        }
-        
         if (!isMounted) {
           isFetching = false;
           return;
         }
         setProfile(null);
+        setLoading(false);
         isFetching = false;
       }
     };
@@ -121,12 +141,13 @@ export function useSupabaseAuth() {
         setUser(user);
 
         if (user) {
+          // Give session time to propagate
+          await new Promise(resolve => setTimeout(resolve, 500));
           await fetchProfile(user.id);
         } else {
           setLoading(false);
         }
       } catch (error) {
-        console.error('Error loading session:', error);
         if (isMounted) {
           setLoading(false);
         }
@@ -138,8 +159,6 @@ export function useSupabaseAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
-        
         if (!isMounted) return;
         
         if (event === 'SIGNED_OUT') {
@@ -150,14 +169,16 @@ export function useSupabaseAuth() {
           return;
         }
 
-        // Only fetch profile on SIGNED_IN, not on TOKEN_REFRESHED
-        if (event === 'SIGNED_IN' && session?.user) {
+        // Only fetch profile on INITIAL_SESSION (when session is fully ready)
+        // SIGNED_IN fires too early and causes timeouts
+        if (event === 'INITIAL_SESSION' && session?.user) {
           setUser(session.user);
-          // Small delay to ensure auth context is ready
-          await new Promise(resolve => setTimeout(resolve, 200));
           await fetchProfile(session.user.id);
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          // Just set user, profile will be fetched on INITIAL_SESSION
+          setUser(session.user);
         } else if (session?.user) {
-          // For other events, just update user but don't refetch profile
+          // For other events (TOKEN_REFRESHED, etc.), just update user
           setUser(session.user);
         } else {
           setUser(null);
