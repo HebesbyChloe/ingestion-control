@@ -8,6 +8,8 @@ export default function LogoutPage() {
   const [status, setStatus] = useState('Signing out...');
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const logout = async () => {
       try {
         const supabase = createClient();
@@ -15,32 +17,42 @@ export default function LogoutPage() {
         console.log('Starting logout process...');
         setStatus('Clearing session...');
         
+        // Set a timeout to force redirect if signOut takes too long
+        timeoutId = setTimeout(() => {
+          console.log('Logout timeout - forcing redirect');
+          window.location.href = '/login';
+        }, 3000); // 3 second timeout
+        
         // Sign out from Supabase
-        const { error } = await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut({
+          scope: 'local' // Only sign out from this device
+        });
+        
+        clearTimeout(timeoutId);
         
         if (error) {
           console.error('Logout error:', error);
-          setStatus('Error signing out. Redirecting...');
+          setStatus('Redirecting...');
         } else {
           console.log('Logout successful');
           setStatus('Redirecting to login...');
         }
         
-        // Wait a moment for cookies to clear
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Use window.location for a hard redirect to clear all state
+        // Immediate redirect - don't wait
         window.location.href = '/login';
       } catch (err) {
         console.error('Unexpected logout error:', err);
-        setStatus('Error occurred. Redirecting...');
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1000);
+        clearTimeout(timeoutId);
+        // Force redirect even on error
+        window.location.href = '/login';
       }
     };
 
     logout();
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   return (

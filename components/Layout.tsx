@@ -17,6 +17,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, signOut } = useSupabaseAuth();
   const { permissions } = usePermissions();
   
+  // Public pages that don't need the sidebar
+  const publicPages = ['/login', '/register', '/logout', '/pending-approval'];
+  const isPublicPage = publicPages.some(page => pathname?.startsWith(page));
+  
+  // If it's a public page, just render children without sidebar
+  if (isPublicPage) {
+    return <>{children}</>;
+  }
+  
+  // If loading and no user, show loading state without sidebar
+  if (loading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <Activity className="w-12 h-12 animate-pulse text-indigo-600 mx-auto mb-4" />
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // If not loading and no user, redirect to login (shouldn't normally happen due to middleware)
+  if (!loading && !user) {
+    return <>{children}</>;
+  }
+  
   // Define all navigation items with role requirements
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', canAccess: true },
@@ -142,35 +168,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="p-4 border-t border-slate-200 space-y-3">
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border border-indigo-200">
-                <span className="text-xs font-bold text-indigo-600">
-                  {loading ? '...' : getInitials(profile?.full_name || null, user?.email || '')}
-                </span>
+            {!loading && user ? (
+              <>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border border-indigo-200">
+                    <span className="text-xs font-bold text-indigo-600">
+                      {getInitials(profile?.full_name || null, user?.email || '')}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      {profile?.full_name || 'User'}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {user?.email}
+                    </p>
+                    {profile && (
+                      <Badge className={cn('mt-1 text-[10px] px-1.5 py-0', getRoleBadgeColor(profile.role))}>
+                        {profile.role}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  className="w-full justify-start gap-2 text-slate-600 hover:text-red-600 hover:bg-red-50"
+                  size="sm"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm">Sign Out</span>
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                <Activity className="w-5 h-5 animate-pulse text-slate-400" />
+                <p className="text-sm text-slate-500">Loading...</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">
-                  {loading ? 'Loading...' : profile?.full_name || 'User'}
-                </p>
-                <p className="text-xs text-slate-500 truncate">
-                  {loading ? '...' : user?.email}
-                </p>
-                {profile && (
-                  <Badge className={cn('mt-1 text-[10px] px-1.5 py-0', getRoleBadgeColor(profile.role))}>
-                    {profile.role}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <Button
-              onClick={handleLogout}
-              variant="ghost"
-              className="w-full justify-start gap-2 text-slate-600 hover:text-red-600 hover:bg-red-50"
-              size="sm"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm">Sign Out</span>
-            </Button>
+            )}
           </div>
         </aside>
 
