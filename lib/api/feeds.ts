@@ -1,3 +1,20 @@
+export interface FieldSchemaField {
+  name: string;
+  type: 'string' | 'number' | 'boolean';
+  sample: string;
+  aliases: string[];
+  required: boolean;
+  description: string;
+  isPrimaryKey?: boolean;
+  isPriceField?: boolean;
+}
+
+export interface FieldSchema {
+  fields: FieldSchemaField[];
+  source: string;
+  lastUpdated: string;
+}
+
 export interface Feed {
   id: number;
   tenant_id: number;
@@ -19,6 +36,7 @@ export interface Feed {
   manifest_directory?: string;
   rules?: Record<string, any>;
   markup_rules?: any;
+  field_schema?: FieldSchema;
   enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -44,6 +62,7 @@ export interface CreateFeedInput {
   manifest_directory?: string;
   rules?: Record<string, any>;
   markup_rules?: any;
+  field_schema?: FieldSchema;
   enabled?: boolean;
 }
 

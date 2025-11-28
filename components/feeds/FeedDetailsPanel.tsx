@@ -3,9 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { X, Save, Trash2, CheckCircle2, XCircle, Eye, EyeOff, Edit } from 'lucide-react';
 import { useState } from 'react';
-import { Feed, CreateFeedInput } from '@/lib/api/feeds';
+import { Feed, CreateFeedInput, FieldSchema } from '@/lib/api/feeds';
+import FieldSchemaTab from './FieldSchemaTab';
 
 interface FeedDetailsPanelProps {
   feed: Feed;
@@ -16,6 +18,7 @@ interface FeedDetailsPanelProps {
 
 export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDetailsPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState('details');
   const [showApiKey, setShowApiKey] = useState(false);
   const [showApiSecret, setShowApiSecret] = useState(false);
   const [requestHeadersJson, setRequestHeadersJson] = useState(
@@ -42,8 +45,13 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
     shard_strategy: feed.shard_strategy,
     shard_directory: feed.shard_directory || '',
     manifest_directory: feed.manifest_directory || '',
+    field_schema: feed.field_schema,
     enabled: feed.enabled,
   });
+
+  const handleFieldSchemaUpdate = (fieldSchema: FieldSchema) => {
+    setFormData({ ...formData, field_schema: fieldSchema });
+  };
 
   const handleSave = () => {
     // Validate and parse JSON fields
@@ -143,9 +151,19 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {/* Status Card */}
-          <Card>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+          <div className="border-b border-slate-200 px-4 sm:px-6">
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="field-schema">Field Schema</TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Details Tab */}
+          <TabsContent value="details" className="p-4 sm:p-6 space-y-4 sm:space-y-6 m-0">
+            {/* Status Card */}
+            <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-slate-600">Status & Info</CardTitle>
             </CardHeader>
@@ -472,7 +490,57 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
               </div>
             </CardContent>
           </Card>
-        </div>
+          </TabsContent>
+
+          {/* Field Schema Tab */}
+          <TabsContent value="field-schema" className="p-4 sm:p-6 m-0">
+            <FieldSchemaTab
+              fieldSchema={formData.field_schema}
+              isEditing={isEditing}
+              onUpdate={handleFieldSchemaUpdate}
+            />
+
+            {/* Timestamps */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-slate-600">Timestamps</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-slate-500">Created At</div>
+                  <div className="font-mono text-slate-900">{new Date(feed.created_at).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Updated At</div>
+                  <div className="font-mono text-slate-900">{new Date(feed.updated_at).toLocaleString()}</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card className="border-red-200 mt-6">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-red-600">Danger Zone</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-medium text-slate-900">Delete This Feed</div>
+                    <div className="text-sm text-slate-500 mt-1">Once deleted, this action cannot be undone.</div>
+                  </div>
+                  <Button
+                    onClick={handleDelete}
+                    variant="outline"
+                    className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Feed
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Floating Edit Button for Mobile */}
         {!isEditing && (

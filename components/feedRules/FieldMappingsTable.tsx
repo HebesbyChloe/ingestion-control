@@ -7,17 +7,32 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import type { FeedRulesConfig, FieldMapping } from '@/lib/api/feedRules';
+import type { FieldSchema } from '@/lib/api/feeds';
 
 interface FieldMappingsTableProps {
   rules: FeedRulesConfig;
   setRules: (rules: FeedRulesConfig) => void;
+  fieldSchema?: FieldSchema;
 }
 
-export default function FieldMappingsTable({ rules, setRules }: FieldMappingsTableProps) {
+export default function FieldMappingsTable({ rules, setRules, fieldSchema }: FieldMappingsTableProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editData, setEditData] = useState<Partial<FieldMapping>>({});
 
   const mappings = rules.fieldMappings || [];
+
+  // Build list of all available field names and aliases for autocomplete
+  const availableFields: string[] = [];
+  if (fieldSchema?.fields) {
+    fieldSchema.fields.forEach(field => {
+      availableFields.push(field.name);
+      field.aliases.forEach(alias => {
+        if (!availableFields.includes(alias)) {
+          availableFields.push(alias);
+        }
+      });
+    });
+  }
 
   const handleAdd = () => {
     const newMapping: FieldMapping = {
@@ -131,24 +146,44 @@ export default function FieldMappingsTable({ rules, setRules }: FieldMappingsTab
                     <TableCell className="text-center">{index + 1}</TableCell>
                     <TableCell>
                       {isEditing ? (
-                        <Input
-                          value={editData.source || ''}
-                          onChange={(e) => handleUpdate('source', e.target.value)}
-                          placeholder="source_field_name"
-                          className="h-8"
-                        />
+                        <>
+                          <Input
+                            value={editData.source || ''}
+                            onChange={(e) => handleUpdate('source', e.target.value)}
+                            placeholder="source_field_name"
+                            className="h-8"
+                            list="source-fields-list"
+                          />
+                          {availableFields.length > 0 && (
+                            <datalist id="source-fields-list">
+                              {availableFields.map((field, idx) => (
+                                <option key={idx} value={field} />
+                              ))}
+                            </datalist>
+                          )}
+                        </>
                       ) : (
                         <span className="font-medium font-mono text-sm">{mapping.source}</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {isEditing ? (
-                        <Input
-                          value={editData.target || ''}
-                          onChange={(e) => handleUpdate('target', e.target.value)}
-                          placeholder="target_field_name"
-                          className="h-8"
-                        />
+                        <>
+                          <Input
+                            value={editData.target || ''}
+                            onChange={(e) => handleUpdate('target', e.target.value)}
+                            placeholder="target_field_name"
+                            className="h-8"
+                            list="target-fields-list"
+                          />
+                          {availableFields.length > 0 && (
+                            <datalist id="target-fields-list">
+                              {availableFields.map((field, idx) => (
+                                <option key={idx} value={field} />
+                              ))}
+                            </datalist>
+                          )}
+                        </>
                       ) : (
                         <span className="font-medium font-mono text-sm">{mapping.target}</span>
                       )}
@@ -231,6 +266,11 @@ export default function FieldMappingsTable({ rules, setRules }: FieldMappingsTab
           <li><strong>Overwrite = No (default):</strong> Adds new target field, keeps original source field</li>
           <li><strong>Overwrite = Yes:</strong> Replaces existing target field value if it exists</li>
           <li>Example: source="Item ID", target="id" → Row will have both "Item ID" and "id" fields</li>
+          {availableFields.length > 0 && (
+            <li className="text-indigo-700">
+              <strong>🔍 Autocomplete enabled:</strong> Type in source/target fields to see suggestions from feed schema
+            </li>
+          )}
         </ul>
       </div>
     </div>

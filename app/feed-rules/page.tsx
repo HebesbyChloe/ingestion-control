@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Save, AlertTriangle } from 'lucide-react';
@@ -14,6 +15,7 @@ import CalculatedFieldsTable from '@/components/feedRules/CalculatedFieldsTable'
 import JsonPreviewPanel from '@/components/feedRules/JsonPreviewPanel';
 import { useFeedRules } from '@/hooks/useFeedRules';
 import { useFeedRulesMutations } from '@/hooks/useFeedRulesMutations';
+import { feedsApi } from '@/lib/api/feeds';
 import type { FeedRulesConfig } from '@/lib/api/feedRules';
 
 type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculatedFields';
@@ -28,6 +30,13 @@ export default function FeedRulesPage() {
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
   const [selectedRuleType, setSelectedRuleType] = useState<RuleType>('filters');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
+
+  // Fetch the selected feed to get field schema
+  const { data: selectedFeed } = useQuery({
+    queryKey: ['feed', selectedFeedId],
+    queryFn: () => selectedFeedId ? feedsApi.getById(selectedFeedId) : null,
+    enabled: !!selectedFeedId,
+  });
 
   // Fetch rules for selected feed
   const {
@@ -157,6 +166,7 @@ export default function FeedRulesPage() {
                     <FieldMappingsTable
                       rules={localRules}
                       setRules={setLocalRules}
+                      fieldSchema={selectedFeed?.field_schema}
                     />
                   )}
                   {selectedRuleType === 'fieldTransformations' && (

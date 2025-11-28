@@ -29,13 +29,37 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
   useEffect(() => {
     if (isOpen) {
       const normalized = markupRulesApi.normalizeMarkupRules(feed.markup_rules);
+      
+      // Auto-detect price fields from field_schema
+      let detectedPriceFields: string[] = [];
+      if (feed.field_schema?.fields) {
+        feed.field_schema.fields.forEach(field => {
+          if (field.isPriceField) {
+            // Add the field name
+            detectedPriceFields.push(field.name);
+            // Also add aliases that might be price-related
+            field.aliases.forEach(alias => {
+              if (!detectedPriceFields.includes(alias)) {
+                detectedPriceFields.push(alias);
+              }
+            });
+          }
+        });
+      }
+
       if (normalized && normalized.rules.length > 0) {
         setRules(normalized.rules);
-        setPriceFields(normalized.priceFields || DEFAULT_PRICE_FIELDS);
+        // Use detected price fields if available, otherwise use existing or defaults
+        setPriceFields(
+          detectedPriceFields.length > 0 
+            ? detectedPriceFields 
+            : normalized.priceFields || DEFAULT_PRICE_FIELDS
+        );
       } else {
         // Default: add one empty rule
         setRules([{ minPrice: 0, maxPrice: null, percent: 300 }]);
-        setPriceFields(DEFAULT_PRICE_FIELDS);
+        // Use detected price fields if available, otherwise defaults
+        setPriceFields(detectedPriceFields.length > 0 ? detectedPriceFields : DEFAULT_PRICE_FIELDS);
       }
       setValidationErrors([]);
       setShowJsonPreview(false);
@@ -228,6 +252,13 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
                 Reset to Defaults
               </Button>
             </div>
+
+            {/* Auto-detected fields notification */}
+            {feed.field_schema?.fields?.some(f => f.isPriceField) && (
+              <div className="mb-3 text-xs bg-green-50 border border-green-200 text-green-700 p-2 rounded">
+                <strong>✓ Auto-detected from field schema:</strong> Price fields were automatically populated from the feed's field schema configuration.
+              </div>
+            )}
 
             <div className="space-y-3">
               {/* Tag Display */}
