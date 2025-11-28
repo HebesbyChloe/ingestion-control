@@ -83,7 +83,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
 
     setEditingIndex(null);
     setEditData({});
-    setShowConditionBuilder(false);
+    setExpandedIndex(null);
   };
 
   const handleCancel = () => {
@@ -98,7 +98,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
 
     setEditingIndex(null);
     setEditData({});
-    setShowConditionBuilder(false);
+    setExpandedIndex(null);
   };
 
   const handleDelete = (index: number) => {
@@ -355,7 +355,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
                                     value={condition.operator || 'equals'}
                                     onChange={(e) => {
                                       const updated = [...(editData.conditions || [])];
-                                      updated[condIndex] = { ...updated[condIndex], operator: e.target.value };
+                                      updated[condIndex] = { ...updated[condIndex], operator: e.target.value as any };
                                       handleConditionsChange(updated);
                                     }}
                                     className="h-8 px-2 border border-slate-300 rounded-md text-sm"

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { FeedRulesConfig, FilterRule } from '@/lib/api/feedRules';
+import type { FeedRulesConfig, FilterRule, Condition } from '@/lib/api/feedRules';
 import ConditionBuilder from './ConditionBuilder';
 
 interface FilterRulesTableProps {
@@ -307,7 +307,7 @@ export default function FilterRulesTable({ rules, setRules }: FilterRulesTablePr
           </div>
           <ConditionBuilder
             conditions={editData.conditions || []}
-            onChange={(conditions) => setEditData({ ...editData, conditions })}
+            onChange={(conditions) => setEditData({ ...editData, conditions: conditions as Condition[] })}
             allowedOperators={['equals', 'contains', 'in', 'regex', 'gt', 'gte', 'lt', 'lte']}
           />
         </div>

@@ -328,7 +328,7 @@ export default function ShardRulesTable({ rules, setRules, fieldSchema }: ShardR
                             {isEditing ? (
                               <ConditionBuilder
                                 conditions={editData.conditions || []}
-                                onChange={(conditions) => handleUpdate('conditions', conditions)}
+                                onChange={(conditions) => handleUpdate('conditions', conditions as ShardCondition[])}
                                 fieldSchema={fieldSchema}
                               />
                             ) : (
