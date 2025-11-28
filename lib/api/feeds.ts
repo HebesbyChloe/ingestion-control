@@ -18,6 +18,7 @@ export interface Feed {
   shard_directory?: string;
   manifest_directory?: string;
   rules?: Record<string, any>;
+  markup_rules?: any;
   enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -42,6 +43,7 @@ export interface CreateFeedInput {
   shard_directory?: string;
   manifest_directory?: string;
   rules?: Record<string, any>;
+  markup_rules?: any;
   enabled?: boolean;
 }
 

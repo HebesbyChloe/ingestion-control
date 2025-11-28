@@ -147,7 +147,7 @@ export const markupRulesApi = {
 
       // Update the feed
       const updatedFeed = await feedsApi.update(feedId, {
-        markup_rules: markupRules as any,
+        markup_rules: markupRules,
       });
 
       return updatedFeed;
