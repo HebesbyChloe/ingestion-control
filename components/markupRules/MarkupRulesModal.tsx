@@ -62,8 +62,6 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
       updated[index][field] = value === '' || value === null ? null : parseFloat(value);
     } else if (field === 'percent') {
       updated[index][field] = value === '' ? 0 : parseFloat(value);
-    } else {
-      updated[index][field] = value;
     }
     
     setRules(updated);
