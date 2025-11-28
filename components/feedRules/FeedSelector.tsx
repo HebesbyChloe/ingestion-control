@@ -47,14 +47,31 @@ export default function FeedSelector({ selectedFeedId, onSelectFeed }: FeedSelec
                 onValueChange={(value) => onSelectFeed(parseInt(value))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a feed to manage rules" />
+                  {selectedFeed ? (
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium text-sm">{selectedFeed.label}</span>
+                        <span className="text-xs text-slate-500">{selectedFeed.feed_key}</span>
+                      </div>
+                      <Badge variant="outline" className="ml-2 font-mono text-xs">
+                        ID: {selectedFeed.id}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <SelectValue placeholder="Choose a feed to manage rules" />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {feeds?.map((feed) => (
                     <SelectItem key={feed.id} value={feed.id.toString()}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{feed.label}</span>
-                        <span className="text-xs text-slate-500">{feed.feed_key}</span>
+                      <div className="flex items-center justify-between gap-3 min-w-[300px]">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{feed.label}</span>
+                          <span className="text-xs text-slate-500">{feed.feed_key}</span>
+                        </div>
+                        <Badge variant="outline" className="font-mono text-xs shrink-0">
+                          ID: {feed.id}
+                        </Badge>
                       </div>
                     </SelectItem>
                   ))}
