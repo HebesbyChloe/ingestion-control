@@ -262,10 +262,14 @@ export default function FieldSchemaTab({
                             {field.name}
                           </span>
                           {field.isPrimaryKey && (
-                            <Key className="w-3 h-3 text-amber-600" title="Primary Key" />
+                            <span title="Primary Key">
+                              <Key className="w-3 h-3 text-amber-600" />
+                            </span>
                           )}
                           {field.isPriceField && (
-                            <DollarSign className="w-3 h-3 text-green-600" title="Price Field" />
+                            <span title="Price Field">
+                              <DollarSign className="w-3 h-3 text-green-600" />
+                            </span>
                           )}
                         </div>
                       </TableCell>
@@ -304,15 +308,13 @@ export default function FieldSchemaTab({
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-2">
                           {field.required ? (
-                            <CheckCircle2
-                              className="w-4 h-4 text-emerald-600"
-                              title="Required"
-                            />
+                            <span title="Required">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            </span>
                           ) : (
-                            <XCircle
-                              className="w-4 h-4 text-slate-300"
-                              title="Optional"
-                            />
+                            <span title="Optional">
+                              <XCircle className="w-4 h-4 text-slate-300" />
+                            </span>
                           )}
                         </div>
                       </TableCell>

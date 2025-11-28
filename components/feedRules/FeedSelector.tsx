@@ -125,10 +125,14 @@ export default function FeedSelector({ selectedFeedId, onSelectFeed }: FeedSelec
                                 {field.name}
                               </span>
                               {field.isPrimaryKey && (
-                                <Key className="w-3 h-3 text-amber-600" title="Primary Key" />
+                                <span title="Primary Key">
+                                  <Key className="w-3 h-3 text-amber-600" />
+                                </span>
                               )}
                               {field.isPriceField && (
-                                <DollarSign className="w-3 h-3 text-green-600" title="Price Field" />
+                                <span title="Price Field">
+                                  <DollarSign className="w-3 h-3 text-green-600" />
+                                </span>
                               )}
                               {field.required && (
                                 <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
