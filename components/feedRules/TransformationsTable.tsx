@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { FeedRulesConfig, FieldTransformation, Condition } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
@@ -94,7 +94,24 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
     }
 
     const updatedTransformations = [...transformations];
-    updatedTransformations[index] = editData as FieldTransformation;
+    
+    // Explicitly construct the transformation object to ensure all fields are present
+    const transformationToSave: FieldTransformation = {
+      target: editData.target!,
+      type: editData.type || 'conditional',
+      overwrite: editData.overwrite || false,
+    };
+
+    // Add type-specific fields
+    if (editData.type === 'conditional') {
+      transformationToSave.conditions = editData.conditions || [];
+      transformationToSave.then = editData.then;
+      transformationToSave.else = editData.else;
+    } else if (editData.type === 'direct') {
+      transformationToSave.value = editData.value;
+    }
+
+    updatedTransformations[index] = transformationToSave;
 
     setRules({
       ...rules,
@@ -154,6 +171,23 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
 
   return (
     <div className="space-y-4">
+      {/* Editing Warning Banner */}
+      {editingIndex !== null && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-900 mb-1">
+              Editing Transformation Row #{editingIndex + 1}
+            </p>
+            <p className="text-xs text-blue-700">
+              Click the <Check className="inline w-3 h-3 mx-1" /> <strong>green checkmark</strong> button to save this row edit, 
+              or <X className="inline w-3 h-3 mx-1" /> to cancel. 
+              After saving the row, click <strong>"Save Changes"</strong> button above to save to the database.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div className="text-sm text-slate-600">
           {transformations.length} transformation{transformations.length !== 1 ? 's' : ''} configured
@@ -317,6 +351,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
                                 variant="ghost"
                                 className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
                                 onClick={() => handleSave(index)}
+                                title="Save row edit (Step 1/2)"
                               >
                                 <Check className="h-4 w-4" />
                               </Button>
@@ -325,6 +360,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
                                 variant="ghost"
                                 className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-100"
                                 onClick={handleCancel}
+                                title="Cancel row edit"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -336,6 +372,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
                                 variant="ghost"
                                 className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 onClick={() => handleEdit(index)}
+                                title="Edit transformation"
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
@@ -344,6 +381,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
                                 variant="ghost"
                                 className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                                 onClick={() => handleDelete(index)}
+                                title="Delete transformation"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -378,7 +416,12 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
       )}
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-slate-700">
-        <p className="font-medium mb-1">💡 Transformation Types:</p>
+        <p className="font-medium mb-2">💡 How to Save Transformations:</p>
+        <ol className="list-decimal list-inside space-y-1 text-xs mb-3 bg-white p-2 rounded border border-blue-200">
+          <li><strong>Step 1:</strong> Edit the transformation row and click the <Check className="inline w-3 h-3 mx-1 text-green-600" /> <strong>green checkmark</strong> to save the row</li>
+          <li><strong>Step 2:</strong> Click the <strong>"Save Changes"</strong> button at the top to save to the database</li>
+        </ol>
+        <p className="font-medium mb-1">Transformation Types:</p>
         <ul className="list-disc list-inside space-y-1 text-xs">
           <li><strong>Conditional:</strong> Apply transformation based on conditions (if-then-else logic)</li>
           <li><strong>Direct:</strong> Assign a constant value to the target field</li>

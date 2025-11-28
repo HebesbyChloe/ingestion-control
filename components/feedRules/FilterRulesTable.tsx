@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Edit2, Check, X, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, GripVertical, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -114,6 +114,7 @@ function SortableRow({ filter, index, isEditing, editData, onEdit, onSave, onCan
                 variant="ghost"
                 className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
                 onClick={() => onSave(index)}
+                title="Save row edit (Step 1/2)"
               >
                 <Check className="h-4 w-4" />
               </Button>
@@ -122,6 +123,7 @@ function SortableRow({ filter, index, isEditing, editData, onEdit, onSave, onCan
                 variant="ghost"
                 className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-100"
                 onClick={onCancel}
+                title="Cancel row edit"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -133,6 +135,7 @@ function SortableRow({ filter, index, isEditing, editData, onEdit, onSave, onCan
                 variant="ghost"
                 className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                 onClick={() => onEdit(index)}
+                title="Edit filter"
               >
                 <Edit2 className="h-4 w-4" />
               </Button>
@@ -141,6 +144,7 @@ function SortableRow({ filter, index, isEditing, editData, onEdit, onSave, onCan
                 variant="ghost"
                 className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                 onClick={() => onDelete(index)}
+                title="Delete filter"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -238,6 +242,23 @@ export default function FilterRulesTable({ rules, setRules, fieldSchema }: Filte
 
   return (
     <div className="space-y-4">
+      {/* Editing Warning Banner */}
+      {editingIndex !== null && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-900 mb-1">
+              Editing Filter Row #{editingIndex + 1}
+            </p>
+            <p className="text-xs text-blue-700">
+              Click the <Check className="inline w-3 h-3 mx-1" /> <strong>green checkmark</strong> button to save this row edit, 
+              or <X className="inline w-3 h-3 mx-1" /> to cancel. 
+              After saving the row, click <strong>"Save Changes"</strong> button above to save to the database.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div className="text-sm text-slate-600">
           {filters.length} filter{filters.length !== 1 ? 's' : ''} configured
