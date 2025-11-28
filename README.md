@@ -89,9 +89,9 @@ The app integrates with:
 - Advanced cron builder for custom expressions
 - Service-specific endpoint dropdowns (Worker, MCP, Backend API)
 - Auto-detection of HTTP methods
-- Execute schedules manually
-- Enable/disable schedules
-- View execution history
+- Execute schedules manually with loading states and error handling
+- Enable/disable schedules (pause/resume) with visual feedback
+- View execution history and metrics
 
 ### Rules
 - Manage pricing rules with markup percentages and conditions
