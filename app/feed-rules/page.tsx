@@ -12,13 +12,14 @@ import FilterRulesTable from '@/components/feedRules/FilterRulesTable';
 import FieldMappingsTable from '@/components/feedRules/FieldMappingsTable';
 import TransformationsTable from '@/components/feedRules/TransformationsTable';
 import CalculatedFieldsTable from '@/components/feedRules/CalculatedFieldsTable';
+import ShardRulesTable from '@/components/feedRules/ShardRulesTable';
 import JsonPreviewPanel from '@/components/feedRules/JsonPreviewPanel';
 import { useFeedRules } from '@/hooks/useFeedRules';
 import { useFeedRulesMutations } from '@/hooks/useFeedRulesMutations';
 import { feedsApi } from '@/lib/api/feeds';
 import type { FeedRulesConfig } from '@/lib/api/feedRules';
 
-type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculatedFields';
+type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculatedFields' | 'shardRules';
 
 /**
  * Feed Rules Page Component
@@ -73,6 +74,7 @@ export default function FeedRulesPage() {
       fieldMappings: localRules.fieldMappings?.length || 0,
       fieldTransformations: localRules.fieldTransformations?.length || 0,
       calculatedFields: localRules.calculatedFields?.length || 0,
+      shardRules: localRules.shardRules?.length || 0,
     };
   };
 
@@ -143,6 +145,7 @@ export default function FeedRulesPage() {
                 {selectedRuleType === 'fieldMappings' && 'Map source fields to target fields'}
                 {selectedRuleType === 'fieldTransformations' && 'Transform field values conditionally'}
                 {selectedRuleType === 'calculatedFields' && 'Create calculated fields using operations'}
+                {selectedRuleType === 'shardRules' && 'Route data to different shards based on conditions'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -179,6 +182,13 @@ export default function FeedRulesPage() {
                     <CalculatedFieldsTable
                       rules={localRules}
                       setRules={setLocalRules}
+                    />
+                  )}
+                  {selectedRuleType === 'shardRules' && (
+                    <ShardRulesTable
+                      rules={localRules}
+                      setRules={setLocalRules}
+                      fieldSchema={selectedFeed?.field_schema}
                     />
                   )}
                 </>

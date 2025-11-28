@@ -2,9 +2,9 @@
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Filter, ArrowRightLeft, Sparkles, Calculator } from 'lucide-react';
+import { Filter, ArrowRightLeft, Sparkles, Calculator, Database } from 'lucide-react';
 
-type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculatedFields';
+type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculatedFields' | 'shardRules';
 
 interface FeedRuleTypeTabsProps {
   selectedRuleType: RuleType;
@@ -14,6 +14,7 @@ interface FeedRuleTypeTabsProps {
     fieldMappings: number;
     fieldTransformations: number;
     calculatedFields: number;
+    shardRules: number;
   };
 }
 
@@ -46,6 +47,12 @@ const RULE_TYPES: Array<{
     label: 'Calculated Fields',
     icon: Calculator,
     description: 'Compute new fields',
+  },
+  {
+    id: 'shardRules',
+    label: 'Shard Rules',
+    icon: Database,
+    description: 'Route to shards',
   },
 ];
 

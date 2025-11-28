@@ -9,6 +9,7 @@ export interface FeedRulesConfig {
   fieldMappings?: FieldMapping[];
   fieldTransformations?: FieldTransformation[];
   calculatedFields?: CalculatedField[];
+  shardRules?: ShardRule[];
 }
 
 export interface FilterRule {
@@ -54,6 +55,20 @@ export interface Operation {
   type: 'add' | 'subtract' | 'multiply' | 'divide' | 'concat' | 'percentage';
   fields: (string | number)[];
   separator?: string; // for concat operations
+}
+
+export interface ShardCondition {
+  field: string;
+  operator: 'equals' | 'not_equals' | 'in' | 'not_in' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'starts_with';
+  value: any;
+}
+
+export interface ShardRule {
+  name: string;
+  shardKey: string;
+  conditions: ShardCondition[];
+  conditionLogic?: 'AND' | 'OR'; // default: AND
+  priority: number;
 }
 
 export interface ValidationError {
@@ -343,6 +358,107 @@ export const feedRulesApi = {
               errors.push({
                 field: `calculatedFields[${index}].operations[${opIndex}].fields`,
                 message: 'At least one field is required',
+                type: 'error',
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Validate shard rules
+    if (rules.shardRules) {
+      const ruleNames = new Set<string>();
+      const priorities = new Set<number>();
+
+      rules.shardRules.forEach((rule, index) => {
+        // Check required fields
+        if (!rule.name || rule.name.trim() === '') {
+          errors.push({
+            field: `shardRules[${index}].name`,
+            message: 'Shard rule name is required',
+            type: 'error',
+          });
+        }
+
+        // Check for duplicate names
+        if (rule.name && ruleNames.has(rule.name)) {
+          errors.push({
+            field: `shardRules[${index}].name`,
+            message: `Duplicate shard rule name: "${rule.name}"`,
+            type: 'error',
+          });
+        }
+        ruleNames.add(rule.name);
+
+        // Check shard key
+        if (!rule.shardKey || rule.shardKey.trim() === '') {
+          errors.push({
+            field: `shardRules[${index}].shardKey`,
+            message: 'Shard key is required',
+            type: 'error',
+          });
+        }
+
+        // Check priority
+        if (rule.priority === undefined || rule.priority === null) {
+          errors.push({
+            field: `shardRules[${index}].priority`,
+            message: 'Priority is required',
+            type: 'error',
+          });
+        } else if (typeof rule.priority !== 'number' || rule.priority < 1) {
+          errors.push({
+            field: `shardRules[${index}].priority`,
+            message: 'Priority must be a positive number',
+            type: 'error',
+          });
+        }
+
+        // Warn about duplicate priorities
+        if (rule.priority && priorities.has(rule.priority)) {
+          errors.push({
+            field: `shardRules[${index}].priority`,
+            message: `Duplicate priority: ${rule.priority}`,
+            type: 'warning',
+          });
+        }
+        priorities.add(rule.priority);
+
+        // Validate conditions
+        if (!rule.conditions || rule.conditions.length === 0) {
+          errors.push({
+            field: `shardRules[${index}].conditions`,
+            message: 'At least one condition is required',
+            type: 'error',
+          });
+        } else {
+          rule.conditions.forEach((condition, condIndex) => {
+            if (!condition.field || condition.field.trim() === '') {
+              errors.push({
+                field: `shardRules[${index}].conditions[${condIndex}].field`,
+                message: 'Field name is required',
+                type: 'error',
+              });
+            }
+            if (!condition.operator) {
+              errors.push({
+                field: `shardRules[${index}].conditions[${condIndex}].operator`,
+                message: 'Operator is required',
+                type: 'error',
+              });
+            }
+            // Validate value based on operator
+            if (condition.value === undefined || condition.value === null || condition.value === '') {
+              errors.push({
+                field: `shardRules[${index}].conditions[${condIndex}].value`,
+                message: 'Value is required',
+                type: 'error',
+              });
+            } else if (['in', 'not_in'].includes(condition.operator) && !Array.isArray(condition.value)) {
+              errors.push({
+                field: `shardRules[${index}].conditions[${condIndex}].value`,
+                message: 'Value must be an array for "in" and "not_in" operators',
                 type: 'error',
               });
             }
