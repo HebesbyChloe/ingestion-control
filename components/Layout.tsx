@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, DollarSign } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
 import { useState } from 'react';
@@ -49,6 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds', canAccess: permissions.canAccessFeeds },
     { id: 'feed-rules', label: 'Feed Rules', icon: Scale, href: '/feed-rules', canAccess: permissions.canAccessRules },
     { id: 'pricing-rules', label: 'Pricing Rules', icon: Scale, href: '/pricing-rules', canAccess: permissions.canAccessRules },
+    { id: 'markup-rules', label: 'Markup Rules', icon: DollarSign, href: '/markup-rules', canAccess: permissions.canAccessRules },
     { id: 'schedules', label: 'Schedules', icon: CalendarClock, href: '/schedules', canAccess: permissions.canAccessSchedules },
     { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers', canAccess: permissions.canAccessWorkers },
     { id: 'admin-users', label: 'Admin Users', icon: Shield, href: '/admin/users', canAccess: permissions.canManageUsers },
@@ -104,6 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith('/admin')) return 'admin-users';
     if (pathname.startsWith('/feed-rules')) return 'feed-rules';
     if (pathname.startsWith('/pricing-rules')) return 'pricing-rules';
+    if (pathname.startsWith('/markup-rules')) return 'markup-rules';
     return pathname.replace('/', '') || 'dashboard';
   };
 

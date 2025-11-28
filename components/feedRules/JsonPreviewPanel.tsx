@@ -83,4 +83,3 @@ export default function JsonPreviewPanel({ rules, onClose }: JsonPreviewPanelPro
     </Card>
   );
 }
-

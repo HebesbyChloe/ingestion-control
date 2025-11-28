@@ -72,4 +72,3 @@ export function useFeedRules(feedId: number | null) {
     pendingChanges: countPendingChanges(),
   };
 }
-
