@@ -101,6 +101,7 @@ export const feedRulesApi = {
           fieldMappings: [],
           fieldTransformations: [],
           calculatedFields: [],
+          shardRules: [],
         };
       }
 
@@ -116,6 +117,7 @@ export const feedRulesApi = {
             fieldMappings: [],
             fieldTransformations: [],
             calculatedFields: [],
+            shardRules: [],
           };
         }
       }
@@ -127,6 +129,7 @@ export const feedRulesApi = {
           fieldMappings: [],
           fieldTransformations: [],
           calculatedFields: [],
+          shardRules: [],
         };
       }
 
@@ -136,6 +139,7 @@ export const feedRulesApi = {
         fieldMappings: rules.fieldMappings || [],
         fieldTransformations: rules.fieldTransformations || [],
         calculatedFields: rules.calculatedFields || [],
+        shardRules: rules.shardRules || [],
       };
     } catch (error) {
       console.error('Error fetching feed rules:', error);
@@ -171,6 +175,9 @@ export const feedRulesApi = {
       }
       if (rules.calculatedFields && rules.calculatedFields.length > 0) {
         cleanRules.calculatedFields = rules.calculatedFields;
+      }
+      if (rules.shardRules && rules.shardRules.length > 0) {
+        cleanRules.shardRules = rules.shardRules;
       }
 
       // Update the feed with new rules
