@@ -18,6 +18,14 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
   const [isEditing, setIsEditing] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showApiSecret, setShowApiSecret] = useState(false);
+  const [requestHeadersJson, setRequestHeadersJson] = useState(
+    feed.request_headers ? JSON.stringify(feed.request_headers, null, 2) : ''
+  );
+  const [requestBodyJson, setRequestBodyJson] = useState(
+    feed.request_body ? JSON.stringify(feed.request_body, null, 2) : ''
+  );
+  const [jsonErrors, setJsonErrors] = useState({ headers: '', body: '' });
+  
   const [formData, setFormData] = useState<Partial<CreateFeedInput>>({
     feed_key: feed.feed_key,
     label: feed.label,
@@ -26,6 +34,8 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
     api_key: feed.api_key || '',
     api_secret: feed.api_secret || '',
     request_method: feed.request_method,
+    request_headers: feed.request_headers,
+    request_body: feed.request_body,
     response_is_zip: feed.response_is_zip,
     primary_key: feed.primary_key,
     shard_naming_prefix: feed.shard_naming_prefix || '',
@@ -36,8 +46,55 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
   });
 
   const handleSave = () => {
+    // Validate and parse JSON fields
+    let hasErrors = false;
+    const errors = { headers: '', body: '' };
+    
+    if (requestHeadersJson.trim()) {
+      try {
+        formData.request_headers = JSON.parse(requestHeadersJson);
+      } catch (e) {
+        errors.headers = 'Invalid JSON format';
+        hasErrors = true;
+      }
+    } else {
+      formData.request_headers = undefined;
+    }
+    
+    if (requestBodyJson.trim()) {
+      try {
+        formData.request_body = JSON.parse(requestBodyJson);
+      } catch (e) {
+        errors.body = 'Invalid JSON format';
+        hasErrors = true;
+      }
+    } else {
+      formData.request_body = undefined;
+    }
+    
+    if (hasErrors) {
+      setJsonErrors(errors);
+      return;
+    }
+    
     onUpdate(feed.id, formData);
     setIsEditing(false);
+  };
+  
+  const handleHeadersChange = (value: string) => {
+    setRequestHeadersJson(value);
+    if (jsonErrors.headers) {
+      // Clear error when user starts typing
+      setJsonErrors({ ...jsonErrors, headers: '' });
+    }
+  };
+  
+  const handleBodyChange = (value: string) => {
+    setRequestBodyJson(value);
+    if (jsonErrors.body) {
+      // Clear error when user starts typing
+      setJsonErrors({ ...jsonErrors, body: '' });
+    }
   };
 
   const handleDelete = () => {
@@ -205,6 +262,58 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
                     <span className="text-sm text-slate-700">Response is ZIP</span>
                   </label>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Request Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-slate-600">Request Configuration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">
+                  Request Headers (JSON)
+                </label>
+                <textarea
+                  value={requestHeadersJson}
+                  disabled={!isEditing}
+                  onChange={(e) => handleHeadersChange(e.target.value)}
+                  placeholder='{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer token"\n}'
+                  rows={6}
+                  className={`w-full px-3 py-2 border rounded-md text-sm font-mono disabled:bg-slate-50 disabled:text-slate-500 ${
+                    jsonErrors.headers ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                />
+                {jsonErrors.headers && (
+                  <p className="text-xs text-red-600 mt-1">{jsonErrors.headers}</p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter custom HTTP headers as JSON. Leave empty if not needed.
+                </p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1">
+                  Request Body (JSON)
+                </label>
+                <textarea
+                  value={requestBodyJson}
+                  disabled={!isEditing}
+                  onChange={(e) => handleBodyChange(e.target.value)}
+                  placeholder='{\n  "filters": {},\n  "limit": 1000\n}'
+                  rows={8}
+                  className={`w-full px-3 py-2 border rounded-md text-sm font-mono disabled:bg-slate-50 disabled:text-slate-500 ${
+                    jsonErrors.body ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                />
+                {jsonErrors.body && (
+                  <p className="text-xs text-red-600 mt-1">{jsonErrors.body}</p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter request body as JSON (for POST/PUT requests). Leave empty for GET requests.
+                </p>
               </div>
             </CardContent>
           </Card>

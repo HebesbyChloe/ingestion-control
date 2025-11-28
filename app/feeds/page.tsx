@@ -260,11 +260,21 @@ function FeedFormModal({
     typesense_collection: feed?.typesense_collection || '',
     external_feed_url: feed?.external_feed_url || '',
     request_method: feed?.request_method || 'POST',
+    request_headers: feed?.request_headers,
+    request_body: feed?.request_body,
     response_is_zip: feed?.response_is_zip ?? true,
     primary_key: feed?.primary_key || 'id',
     shard_strategy: feed?.shard_strategy || 'size',
     enabled: feed?.enabled ?? true,
   });
+  
+  const [requestHeadersJson, setRequestHeadersJson] = useState(
+    feed?.request_headers ? JSON.stringify(feed.request_headers, null, 2) : ''
+  );
+  const [requestBodyJson, setRequestBodyJson] = useState(
+    feed?.request_body ? JSON.stringify(feed.request_body, null, 2) : ''
+  );
+  const [jsonErrors, setJsonErrors] = useState({ headers: '', body: '' });
 
   const createMutation = useMutation({
     mutationFn: (data: CreateFeedInput) => feedsApi.create(data),
@@ -284,10 +294,56 @@ function FeedFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate and parse JSON fields
+    let hasErrors = false;
+    const errors = { headers: '', body: '' };
+    
+    if (requestHeadersJson.trim()) {
+      try {
+        formData.request_headers = JSON.parse(requestHeadersJson);
+      } catch (e) {
+        errors.headers = 'Invalid JSON format';
+        hasErrors = true;
+      }
+    } else {
+      formData.request_headers = undefined;
+    }
+    
+    if (requestBodyJson.trim()) {
+      try {
+        formData.request_body = JSON.parse(requestBodyJson);
+      } catch (e) {
+        errors.body = 'Invalid JSON format';
+        hasErrors = true;
+      }
+    } else {
+      formData.request_body = undefined;
+    }
+    
+    if (hasErrors) {
+      setJsonErrors(errors);
+      return;
+    }
+    
     if (feed) {
       updateMutation.mutate(formData);
     } else {
       createMutation.mutate(formData);
+    }
+  };
+  
+  const handleHeadersChange = (value: string) => {
+    setRequestHeadersJson(value);
+    if (jsonErrors.headers) {
+      setJsonErrors({ ...jsonErrors, headers: '' });
+    }
+  };
+  
+  const handleBodyChange = (value: string) => {
+    setRequestBodyJson(value);
+    if (jsonErrors.body) {
+      setJsonErrors({ ...jsonErrors, body: '' });
     }
   };
 
@@ -409,6 +465,42 @@ function FeedFormModal({
                     <option value="custom">Custom</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">
+                  Request Headers (JSON) - Optional
+                </label>
+                <textarea
+                  value={requestHeadersJson}
+                  onChange={(e) => handleHeadersChange(e.target.value)}
+                  placeholder='{"Content-Type": "application/json", "Authorization": "Bearer token"}'
+                  rows={4}
+                  className={`w-full px-3 py-2 border rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    jsonErrors.headers ? 'border-red-300' : 'border-slate-300'
+                  }`}
+                />
+                {jsonErrors.headers && (
+                  <p className="text-xs text-red-600 mt-1">{jsonErrors.headers}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">
+                  Request Body (JSON) - Optional
+                </label>
+                <textarea
+                  value={requestBodyJson}
+                  onChange={(e) => handleBodyChange(e.target.value)}
+                  placeholder='{"filters": {}, "limit": 1000}'
+                  rows={5}
+                  className={`w-full px-3 py-2 border rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    jsonErrors.body ? 'border-red-300' : 'border-slate-300'
+                  }`}
+                />
+                {jsonErrors.body && (
+                  <p className="text-xs text-red-600 mt-1">{jsonErrors.body}</p>
+                )}
               </div>
 
               <div className="flex items-center gap-4">
