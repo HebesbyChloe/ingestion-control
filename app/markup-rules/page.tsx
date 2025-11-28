@@ -134,7 +134,8 @@ export default function MarkupRulesPage() {
                 </TableHeader>
                 <TableBody>
                   {feeds.map((feed, index) => {
-                    const hasRules = markupRulesApi.normalizeMarkupRules(feed.markup_rules)?.rules.length > 0;
+                    const normalized = markupRulesApi.normalizeMarkupRules(feed.markup_rules);
+                    const hasRules = normalized?.rules && normalized.rules.length > 0;
                     const rulesSummary = getRulesSummary(feed);
                     
                     return (
