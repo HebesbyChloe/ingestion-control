@@ -91,6 +91,16 @@ export function denormalizeMarkupRules(
 
 export const markupRulesApi = {
   /**
+   * Normalize markup rules to consistent format
+   */
+  normalizeMarkupRules,
+
+  /**
+   * Convert markup rules to storage format
+   */
+  denormalizeMarkupRules,
+
+  /**
    * Get all feeds with their markup rules
    */
   getAllFeedsWithMarkup: async (): Promise<FeedWithMarkup[]> => {
