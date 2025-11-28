@@ -33,15 +33,27 @@ export default function ConditionBuilder({ conditions, onChange, fieldSchema, al
 
   // Build list of available field names for autocomplete
   const availableFields: string[] = [];
+  const fieldNamesLowerCase = new Set<string>(); // Track lowercase versions to prevent duplicates
+
   if (fieldSchema?.fields) {
     fieldSchema.fields.forEach(field => {
-      availableFields.push(field.name);
+      const fieldLower = field.name.toLowerCase();
+      if (!fieldNamesLowerCase.has(fieldLower)) {
+        availableFields.push(field.name);
+        fieldNamesLowerCase.add(fieldLower);
+      }
+      
       field.aliases.forEach(alias => {
-        if (!availableFields.includes(alias)) {
+        const aliasLower = alias.toLowerCase();
+        if (!fieldNamesLowerCase.has(aliasLower)) {
           availableFields.push(alias);
+          fieldNamesLowerCase.add(aliasLower);
         }
       });
     });
+    
+    // Sort fields alphabetically (case-insensitive)
+    availableFields.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
   }
 
   const handleAddCondition = () => {

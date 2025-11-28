@@ -10,6 +10,7 @@ import { Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-re
 import { Badge } from '@/components/ui/badge';
 import type { FeedRulesConfig, FieldTransformation, Condition } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
+import ConditionBuilder from './ConditionBuilder';
 
 interface TransformationsTableProps {
   rules: FeedRulesConfig;
@@ -28,7 +29,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
     const newTransform: FieldTransformation = {
       target: '',
       type: 'conditional',
-      conditions: [],
+      conditions: [{ field: '', operator: 'equals', value: '' }], // Start with one empty condition
       then: '',
       else: '',
       overwrite: false,
@@ -39,8 +40,9 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
       fieldTransformations: [...transformations, newTransform],
     });
 
-    // Start editing the new transformation
+    // Start editing the new transformation and expand conditions
     setEditingIndex(transformations.length);
+    setExpandedIndex(transformations.length); // Auto-expand conditions
     setEditData(newTransform);
   };
 
@@ -52,7 +54,7 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
 
   const handleSave = (index: number) => {
     // Validate required fields
-    if (!editData.target) {
+    if (!editData.target || editData.target.trim() === '') {
       alert('Target field is required');
       return;
     }
@@ -62,7 +64,25 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
         alert('At least one condition is required for conditional transformations');
         return;
       }
-      if (editData.then === undefined) {
+      
+      // Validate each condition has required fields
+      for (let i = 0; i < editData.conditions.length; i++) {
+        const condition = editData.conditions[i];
+        if (!condition.field || condition.field.trim() === '') {
+          alert(`Condition ${i + 1}: Field is required`);
+          return;
+        }
+        if (!condition.operator) {
+          alert(`Condition ${i + 1}: Operator is required`);
+          return;
+        }
+        if (condition.value === undefined || condition.value === '') {
+          alert(`Condition ${i + 1}: Value is required`);
+          return;
+        }
+      }
+      
+      if (editData.then === undefined || editData.then === '') {
         alert('"Then" value is required for conditional transformations');
         return;
       }
@@ -337,72 +357,12 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
                         <TableCell colSpan={6} className="bg-slate-50 p-4">
                           <div className="space-y-2">
                             <h4 className="text-sm font-medium text-slate-700 mb-2">Conditions</h4>
-                            {/* Simple inline condition builder */}
-                            <div className="space-y-2">
-                              {(editData.conditions || []).map((condition: any, condIndex: number) => (
-                                <div key={condIndex} className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded">
-                                  <Input
-                                    placeholder="Field"
-                                    value={condition.field || ''}
-                                    onChange={(e) => {
-                                      const updated = [...(editData.conditions || [])];
-                                      updated[condIndex] = { ...updated[condIndex], field: e.target.value };
-                                      handleConditionsChange(updated);
-                                    }}
-                                    className="h-8 w-40"
-                                  />
-                                  <select
-                                    value={condition.operator || 'equals'}
-                                    onChange={(e) => {
-                                      const updated = [...(editData.conditions || [])];
-                                      updated[condIndex] = { ...updated[condIndex], operator: e.target.value as any };
-                                      handleConditionsChange(updated);
-                                    }}
-                                    className="h-8 px-2 border border-slate-300 rounded-md text-sm"
-                                  >
-                                    <option value="equals">equals</option>
-                                    <option value="contains">contains</option>
-                                    <option value="in">in</option>
-                                    <option value="gt">greater than</option>
-                                    <option value="lt">less than</option>
-                                  </select>
-                                  <Input
-                                    placeholder="Value"
-                                    value={condition.value || ''}
-                                    onChange={(e) => {
-                                      const updated = [...(editData.conditions || [])];
-                                      updated[condIndex] = { ...updated[condIndex], value: e.target.value };
-                                      handleConditionsChange(updated);
-                                    }}
-                                    className="h-8 flex-1"
-                                  />
-                                  <Button
-                                    type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      const updated = (editData.conditions || []).filter((_, i) => i !== condIndex);
-                                      handleConditionsChange(updated);
-                                    }}
-                                    className="h-8 w-8 text-red-600"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  handleConditionsChange([...(editData.conditions || []), { field: '', operator: 'equals', value: '' }]);
-                                }}
-                                className="w-full gap-2"
-                              >
-                                <Plus className="w-4 h-4" />
-                                Add Condition
-                              </Button>
-                            </div>
+                            <ConditionBuilder
+                              conditions={editData.conditions || []}
+                              onChange={handleConditionsChange}
+                              fieldSchema={fieldSchema}
+                              allowedOperators={['equals', 'contains', 'in', 'regex', 'gt', 'gte', 'lt', 'lte']}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>

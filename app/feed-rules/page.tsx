@@ -163,6 +163,7 @@ export default function FeedRulesPage() {
                     <FilterRulesTable
                       rules={localRules}
                       setRules={setLocalRules}
+                      fieldSchema={selectedFeed?.field_schema}
                     />
                   )}
                   {selectedRuleType === 'fieldMappings' && (

@@ -11,11 +11,13 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { FeedRulesConfig, FilterRule, Condition } from '@/lib/api/feedRules';
+import type { FieldSchema } from '@/lib/api/feeds';
 import ConditionBuilder from './ConditionBuilder';
 
 interface FilterRulesTableProps {
   rules: FeedRulesConfig;
   setRules: (rules: FeedRulesConfig) => void;
+  fieldSchema?: FieldSchema;
 }
 
 interface SortableRowProps {
@@ -150,7 +152,7 @@ function SortableRow({ filter, index, isEditing, editData, onEdit, onSave, onCan
   );
 }
 
-export default function FilterRulesTable({ rules, setRules }: FilterRulesTableProps) {
+export default function FilterRulesTable({ rules, setRules, fieldSchema }: FilterRulesTableProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editData, setEditData] = useState<Partial<FilterRule>>({});
   const [showConditionBuilder, setShowConditionBuilder] = useState(false);
@@ -308,6 +310,7 @@ export default function FilterRulesTable({ rules, setRules }: FilterRulesTablePr
           <ConditionBuilder
             conditions={editData.conditions || []}
             onChange={(conditions) => setEditData({ ...editData, conditions: conditions as Condition[] })}
+            fieldSchema={fieldSchema}
             allowedOperators={['equals', 'contains', 'in', 'regex', 'gt', 'gte', 'lt', 'lte']}
           />
         </div>
