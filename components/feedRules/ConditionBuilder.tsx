@@ -61,11 +61,16 @@ export default function ConditionBuilder({ conditions, onChange, fieldSchema, al
 
     // Reset value when operator changes
     if (field === 'operator') {
-      const inputType = getOperatorInputType(value as OperatorType);
-      if (inputType === 'array') {
-        updated[index].value = [];
-        setArrayInput({ ...arrayInput, [index]: '' });
-      } else {
+      try {
+        const inputType = getOperatorInputType(value as OperatorType);
+        if (inputType === 'array') {
+          updated[index].value = [];
+          setArrayInput({ ...arrayInput, [index]: '' });
+        } else {
+          updated[index].value = '';
+        }
+      } catch {
+        // If operator is not recognized, keep current value
         updated[index].value = '';
       }
     }
@@ -100,8 +105,8 @@ export default function ConditionBuilder({ conditions, onChange, fieldSchema, al
   return (
     <div className="space-y-3">
       {conditions.map((condition, index) => {
-        const inputType = getOperatorInputType(condition.operator);
-        const error = validateOperatorValue(condition.operator, condition.value);
+        const inputType = getOperatorInputType(condition.operator as OperatorType);
+        const error = validateOperatorValue(condition.operator as OperatorType, condition.value);
 
         return (
           <div key={index} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
