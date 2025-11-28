@@ -294,11 +294,23 @@ export default function FilterRulesTable({ rules, setRules }: FilterRulesTablePr
 
       {/* Condition Builder Modal/Panel */}
       {showConditionBuilder && editingIndex !== null && (
-        <ConditionBuilder
-          conditions={editData.conditions || []}
-          onChange={(conditions) => setEditData({ ...editData, conditions })}
-          onClose={() => setShowConditionBuilder(false)}
-        />
+        <div className="mt-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-slate-700">Edit Conditions</h4>
+            <Button
+              onClick={() => setShowConditionBuilder(false)}
+              variant="ghost"
+              size="sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          <ConditionBuilder
+            conditions={editData.conditions || []}
+            onChange={(conditions) => setEditData({ ...editData, conditions })}
+            allowedOperators={['equals', 'contains', 'in', 'regex', 'gt', 'gte', 'lt', 'lte']}
+          />
+        </div>
       )}
     </div>
   );

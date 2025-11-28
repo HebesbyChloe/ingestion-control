@@ -6,19 +6,30 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, X } from 'lucide-react';
 import { getAvailableOperators, getOperatorInputType, validateOperatorValue, type OperatorType } from '@/lib/utils/operators';
-import type { ShardCondition } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
 
-interface ConditionBuilderProps {
-  conditions: ShardCondition[];
-  onChange: (conditions: ShardCondition[]) => void;
-  fieldSchema?: FieldSchema;
+// Generic condition type to support both ShardCondition and Condition
+interface GenericCondition {
+  field: string;
+  operator: string;
+  value: any;
 }
 
-export default function ConditionBuilder({ conditions, onChange, fieldSchema }: ConditionBuilderProps) {
+interface ConditionBuilderProps {
+  conditions: GenericCondition[];
+  onChange: (conditions: GenericCondition[]) => void;
+  fieldSchema?: FieldSchema;
+  allowedOperators?: string[]; // Optional: filter operators to specific ones
+}
+
+export default function ConditionBuilder({ conditions, onChange, fieldSchema, allowedOperators }: ConditionBuilderProps) {
   const [arrayInput, setArrayInput] = useState<Record<number, string>>({});
 
-  const operators = getAvailableOperators();
+  // Get all operators, then filter if allowedOperators is provided
+  const allOperators = getAvailableOperators();
+  const operators = allowedOperators
+    ? allOperators.filter(op => allowedOperators.includes(op.value))
+    : allOperators;
 
   // Build list of available field names for autocomplete
   const availableFields: string[] = [];
@@ -44,7 +55,7 @@ export default function ConditionBuilder({ conditions, onChange, fieldSchema }: 
     onChange(conditions.filter((_, i) => i !== index));
   };
 
-  const handleUpdateCondition = (index: number, field: keyof ShardCondition, value: any) => {
+  const handleUpdateCondition = (index: number, field: keyof GenericCondition, value: any) => {
     const updated = [...conditions];
     updated[index] = { ...updated[index], [field]: value };
 
