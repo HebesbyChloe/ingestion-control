@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Gateway now correctly routes /scheduler/schedules/{id}/execute to scheduler service
     const response = await fetch(`${API_GATEWAY_URL}/scheduler/schedules/${id}/execute`, {
       method: 'POST',
       headers: {

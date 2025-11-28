@@ -15,6 +15,8 @@ import { ScheduleDetailsPanel } from '@/components/schedules/ScheduleDetailsPane
 export default function SchedulesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
+  const [executingScheduleId, setExecutingScheduleId] = useState<number | null>(null);
+  const [togglingScheduleId, setTogglingScheduleId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch schedules from API
@@ -47,15 +49,34 @@ export default function SchedulesPage() {
 
   // Execute mutation
   const executeMutation = useMutation({
-    mutationFn: (id: number) => schedulesApi.execute(id),
+    mutationFn: (id: number) => {
+      setExecutingScheduleId(id);
+      return schedulesApi.execute(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      setExecutingScheduleId(null);
+    },
+    onError: (error) => {
+      console.error('Execute mutation error:', error);
+      setExecutingScheduleId(null);
+    },
   });
 
   // Toggle enabled mutation
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      schedulesApi.update(id, { enabled: !enabled }),
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) => {
+      setTogglingScheduleId(id);
+      return schedulesApi.update(id, { enabled: !enabled });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      setTogglingScheduleId(null);
+    },
+    onError: (error) => {
+      console.error('Toggle mutation error:', error);
+      alert(`Failed to toggle schedule: ${error}`);
+      setTogglingScheduleId(null);
     },
   });
 
@@ -138,6 +159,8 @@ export default function SchedulesPage() {
                 onClick={() => setSelectedSchedule(schedule)}
                 onExecute={() => handleExecute(schedule.id)}
                 onToggle={() => handleToggle(schedule.id, schedule.enabled)}
+                isExecuting={executingScheduleId === schedule.id}
+                isToggling={togglingScheduleId === schedule.id}
               />
             ))
           )}
@@ -172,11 +195,15 @@ function ScheduleCard({
   onClick,
   onExecute,
   onToggle,
+  isExecuting = false,
+  isToggling = false,
 }: {
   schedule: Schedule;
   onClick: () => void;
   onExecute: () => void;
   onToggle: () => void;
+  isExecuting?: boolean;
+  isToggling?: boolean;
 }) {
   const status = schedule.enabled ? 'active' : 'paused';
   
@@ -275,9 +302,14 @@ function ScheduleCard({
                 e.stopPropagation();
                 onExecute();
               }}
+              disabled={isExecuting || isToggling}
               title="Execute now"
             >
-              <Play className="w-4 h-4" />
+              {isExecuting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
             </Button>
             <Button 
               variant="ghost" 
@@ -287,9 +319,16 @@ function ScheduleCard({
                 e.stopPropagation();
                 onToggle();
               }}
+              disabled={isExecuting || isToggling}
               title={status === 'active' ? 'Pause schedule' : 'Enable schedule'}
             >
-              {status === 'active' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+              {isToggling ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : status === 'active' ? (
+                <Pause className="w-4 h-4" />
+              ) : (
+                <Play className="w-4 h-4 fill-current" />
+              )}
             </Button>
           </div>
         </div>
