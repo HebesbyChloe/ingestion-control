@@ -6,20 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { FeedRulesConfig, FieldTransformation } from '@/lib/api/feedRules';
-import ConditionBuilder from './ConditionBuilder';
+import type { FeedRulesConfig, FieldTransformation, Condition } from '@/lib/api/feedRules';
+import type { FieldSchema } from '@/lib/api/feeds';
 
 interface TransformationsTableProps {
   rules: FeedRulesConfig;
   setRules: (rules: FeedRulesConfig) => void;
+  fieldSchema?: FieldSchema;
 }
 
-export default function TransformationsTable({ rules, setRules }: TransformationsTableProps) {
+export default function TransformationsTable({ rules, setRules, fieldSchema }: TransformationsTableProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editData, setEditData] = useState<Partial<FieldTransformation>>({});
-  const [showConditionBuilder, setShowConditionBuilder] = useState(false);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const transformations = rules.fieldTransformations || [];
 
@@ -45,10 +46,8 @@ export default function TransformationsTable({ rules, setRules }: Transformation
 
   const handleEdit = (index: number) => {
     setEditingIndex(index);
+    setExpandedIndex(index);
     setEditData({ ...transformations[index] });
-    if (transformations[index].type === 'conditional') {
-      setShowConditionBuilder(true);
-    }
   };
 
   const handleSave = (index: number) => {
@@ -115,17 +114,20 @@ export default function TransformationsTable({ rules, setRules }: Transformation
   const handleUpdate = (field: keyof FieldTransformation, value: any) => {
     setEditData({ ...editData, [field]: value });
     
-    // If changing type, show/hide condition builder
+    // If changing type, reset fields
     if (field === 'type') {
-      setShowConditionBuilder(value === 'conditional');
       if (value === 'direct') {
         // Clear conditional fields
         setEditData({ ...editData, type: value, conditions: undefined, then: undefined, else: undefined });
       } else {
-        // Clear direct field
+        // Clear direct field, initialize conditions
         setEditData({ ...editData, type: value, value: undefined, conditions: editData.conditions || [] });
       }
     }
+  };
+
+  const handleConditionsChange = (conditions: Condition[]) => {
+    setEditData({ ...editData, conditions });
   };
 
   return (
@@ -161,167 +163,256 @@ export default function TransformationsTable({ rules, setRules }: Transformation
             <TableBody>
               {transformations.map((transform, index) => {
                 const isEditing = editingIndex === index;
+                const isExpanded = expandedIndex === index;
+                const showConditions = isEditing && (editData.type || transform.type) === 'conditional';
+
                 return (
-                  <TableRow key={index} className={isEditing ? 'bg-blue-50' : ''}>
-                    <TableCell className="text-center">{index + 1}</TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <Input
-                          value={editData.target || ''}
-                          onChange={(e) => handleUpdate('target', e.target.value)}
-                          placeholder="target_field_name"
-                          className="h-8"
-                        />
-                      ) : (
-                        <span className="font-medium font-mono text-sm">{transform.target}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <Select
-                          value={editData.type || 'conditional'}
-                          onValueChange={(value) => handleUpdate('type', value)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="conditional">Conditional</SelectItem>
-                            <SelectItem value="direct">Direct</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="outline">
-                          {transform.type}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <div className="space-y-2">
-                          {(editData.type || transform.type) === 'conditional' ? (
+                  <>
+                    <TableRow key={index} className={isEditing ? 'bg-blue-50' : ''}>
+                      <TableCell className="text-center">{index + 1}</TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input
+                            value={editData.target || ''}
+                            onChange={(e) => handleUpdate('target', e.target.value)}
+                            placeholder="target_field_name"
+                            className="h-8"
+                          />
+                        ) : (
+                          <span className="font-medium font-mono text-sm">{transform.target}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Select
+                            value={editData.type || 'conditional'}
+                            onValueChange={(value) => handleUpdate('type', value)}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="conditional">Conditional</SelectItem>
+                              <SelectItem value="direct">Direct</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline">
+                            {transform.type}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            {(editData.type || transform.type) === 'conditional' ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setExpandedIndex(isExpanded ? null : index)}
+                                  className="gap-1 h-7 text-xs"
+                                >
+                                  <span>{(editData.conditions || []).length} condition(s)</span>
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-3 h-3" />
+                                  ) : (
+                                    <ChevronDown className="w-3 h-3" />
+                                  )}
+                                </Button>
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={editData.then !== undefined ? String(editData.then) : ''}
+                                    onChange={(e) => handleUpdate('then', e.target.value)}
+                                    placeholder="Then value"
+                                    className="h-8 flex-1"
+                                  />
+                                  <Input
+                                    value={editData.else !== undefined ? String(editData.else) : ''}
+                                    onChange={(e) => handleUpdate('else', e.target.value)}
+                                    placeholder="Else value (optional)"
+                                    className="h-8 flex-1"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <Input
+                                value={editData.value !== undefined ? String(editData.value) : ''}
+                                onChange={(e) => handleUpdate('value', e.target.value)}
+                                placeholder="Constant value"
+                                className="h-8"
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-slate-600">
+                            {transform.type === 'conditional' ? (
+                              <div>
+                                <div className="text-xs text-slate-500 mb-1">
+                                  {transform.conditions?.length || 0} condition(s)
+                                </div>
+                                <div>
+                                  <span className="font-mono text-xs">then: {String(transform.then)}</span>
+                                  {transform.else && (
+                                    <span className="ml-2 font-mono text-xs">else: {String(transform.else)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="font-mono text-xs">= {String(transform.value)}</span>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`overwrite-${index}`}
+                              checked={editData.overwrite || false}
+                              onCheckedChange={(checked) => handleUpdate('overwrite', checked)}
+                            />
+                            <label
+                              htmlFor={`overwrite-${index}`}
+                              className="text-sm cursor-pointer"
+                            >
+                              Yes
+                            </label>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-600">
+                            {transform.overwrite ? 'Yes' : 'No'}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {isEditing ? (
                             <>
-                              <div className="text-xs text-slate-600">
-                                {(editData.conditions || transform.conditions)?.length || 0} condition(s)
-                              </div>
-                              <div className="flex gap-2">
-                                <Input
-                                  value={editData.then !== undefined ? String(editData.then) : ''}
-                                  onChange={(e) => handleUpdate('then', e.target.value)}
-                                  placeholder="Then value"
-                                  className="h-8 flex-1"
-                                />
-                                <Input
-                                  value={editData.else !== undefined ? String(editData.else) : ''}
-                                  onChange={(e) => handleUpdate('else', e.target.value)}
-                                  placeholder="Else value (optional)"
-                                  className="h-8 flex-1"
-                                />
-                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleSave(index)}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+                                onClick={handleCancel}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
                             </>
                           ) : (
-                            <Input
-                              value={editData.value !== undefined ? String(editData.value) : ''}
-                              onChange={(e) => handleUpdate('value', e.target.value)}
-                              placeholder="Constant value"
-                              className="h-8"
-                            />
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => handleEdit(index)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDelete(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
-                      ) : (
-                        <div className="text-sm text-slate-600">
-                          {transform.type === 'conditional' ? (
-                            <div>
-                              <span className="font-mono text-xs">then: {String(transform.then)}</span>
-                              {transform.else && (
-                                <span className="ml-2 font-mono text-xs">else: {String(transform.else)}</span>
-                              )}
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expanded Conditions Row */}
+                    {showConditions && isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-slate-50 p-4">
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium text-slate-700 mb-2">Conditions</h4>
+                            {/* Simple inline condition builder */}
+                            <div className="space-y-2">
+                              {(editData.conditions || []).map((condition: any, condIndex: number) => (
+                                <div key={condIndex} className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded">
+                                  <Input
+                                    placeholder="Field"
+                                    value={condition.field || ''}
+                                    onChange={(e) => {
+                                      const updated = [...(editData.conditions || [])];
+                                      updated[condIndex] = { ...updated[condIndex], field: e.target.value };
+                                      handleConditionsChange(updated);
+                                    }}
+                                    className="h-8 w-40"
+                                  />
+                                  <select
+                                    value={condition.operator || 'equals'}
+                                    onChange={(e) => {
+                                      const updated = [...(editData.conditions || [])];
+                                      updated[condIndex] = { ...updated[condIndex], operator: e.target.value };
+                                      handleConditionsChange(updated);
+                                    }}
+                                    className="h-8 px-2 border border-slate-300 rounded-md text-sm"
+                                  >
+                                    <option value="equals">equals</option>
+                                    <option value="contains">contains</option>
+                                    <option value="in">in</option>
+                                    <option value="gt">greater than</option>
+                                    <option value="lt">less than</option>
+                                  </select>
+                                  <Input
+                                    placeholder="Value"
+                                    value={condition.value || ''}
+                                    onChange={(e) => {
+                                      const updated = [...(editData.conditions || [])];
+                                      updated[condIndex] = { ...updated[condIndex], value: e.target.value };
+                                      handleConditionsChange(updated);
+                                    }}
+                                    className="h-8 flex-1"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      const updated = (editData.conditions || []).filter((_, i) => i !== condIndex);
+                                      handleConditionsChange(updated);
+                                    }}
+                                    className="h-8 w-8 text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  handleConditionsChange([...(editData.conditions || []), { field: '', operator: 'equals', value: '' }]);
+                                }}
+                                className="w-full gap-2"
+                              >
+                                <Plus className="w-4 h-4" />
+                                Add Condition
+                              </Button>
                             </div>
-                          ) : (
-                            <span className="font-mono text-xs">= {String(transform.value)}</span>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isEditing ? (
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`overwrite-${index}`}
-                            checked={editData.overwrite || false}
-                            onCheckedChange={(checked) => handleUpdate('overwrite', checked)}
-                          />
-                          <label
-                            htmlFor={`overwrite-${index}`}
-                            className="text-sm cursor-pointer"
-                          >
-                            Yes
-                          </label>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-600">
-                          {transform.overwrite ? 'Yes' : 'No'}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={() => handleSave(index)}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-100"
-                              onClick={handleCancel}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                              onClick={() => handleEdit(index)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleDelete(index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 );
               })}
             </TableBody>
           </Table>
         </div>
-      )}
-
-      {/* Condition Builder for Conditional Transformations */}
-      {showConditionBuilder && editingIndex !== null && editData.type === 'conditional' && (
-        <ConditionBuilder
-          conditions={editData.conditions || []}
-          onChange={(conditions) => setEditData({ ...editData, conditions })}
-          onClose={() => setShowConditionBuilder(false)}
-        />
       )}
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-slate-700">

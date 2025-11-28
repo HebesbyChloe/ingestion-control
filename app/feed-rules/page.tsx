@@ -176,6 +176,7 @@ export default function FeedRulesPage() {
                     <TransformationsTable
                       rules={localRules}
                       setRules={setLocalRules}
+                      fieldSchema={selectedFeed?.field_schema}
                     />
                   )}
                   {selectedRuleType === 'calculatedFields' && (
