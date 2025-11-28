@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import type { FeedRulesConfig, ShardRule, ShardCondition } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
-import ConditionBuilder from './ConditionBuilder';
+import ConditionBuilder, { type GenericCondition } from './ConditionBuilder';
 import { COMMON_SHARD_KEYS } from '@/lib/constants/shardKeys';
 
 interface ShardRulesTableProps {

@@ -12,7 +12,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import type { FeedRulesConfig, FilterRule, Condition } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
-import ConditionBuilder from './ConditionBuilder';
+import ConditionBuilder, { type GenericCondition } from './ConditionBuilder';
 
 interface FilterRulesTableProps {
   rules: FeedRulesConfig;

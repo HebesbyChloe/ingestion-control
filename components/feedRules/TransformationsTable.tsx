@@ -10,7 +10,7 @@ import { Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronUp } from 'lucide-re
 import { Badge } from '@/components/ui/badge';
 import type { FeedRulesConfig, FieldTransformation, Condition } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
-import ConditionBuilder from './ConditionBuilder';
+import ConditionBuilder, { type GenericCondition } from './ConditionBuilder';
 
 interface TransformationsTableProps {
   rules: FeedRulesConfig;
@@ -146,8 +146,10 @@ export default function TransformationsTable({ rules, setRules, fieldSchema }: T
     }
   };
 
-  const handleConditionsChange = (conditions: Condition[]) => {
-    setEditData({ ...editData, conditions });
+  const handleConditionsChange = (conditions: GenericCondition[]) => {
+    // Cast from GenericCondition[] to Condition[] - the operators are compatible at runtime
+    // GenericCondition has operator: string, while Condition has specific operator types
+    setEditData({ ...editData, conditions: conditions as Condition[] });
   };
 
   return (

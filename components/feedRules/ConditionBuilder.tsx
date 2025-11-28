@@ -9,7 +9,7 @@ import { getAvailableOperators, getOperatorInputType, validateOperatorValue, typ
 import type { FieldSchema } from '@/lib/api/feeds';
 
 // Generic condition type to support both ShardCondition and Condition
-interface GenericCondition {
+export interface GenericCondition {
   field: string;
   operator: string;
   value: any;
