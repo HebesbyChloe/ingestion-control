@@ -46,9 +46,9 @@ import { useSimpleHandlers } from '@/hooks/useSimpleHandlers';
 // These come from browser extensions, not this code
 
 /**
- * Rules Page Component
+ * Pricing Rules Page Component
  * 
- * Main orchestrator component for the Ingestion Rules management interface.
+ * Main orchestrator component for the Pricing Rules management interface.
  * This component coordinates:
  * - Data fetching (feeds, rule types, rules)
  * - State management (selection, editing, pending changes)
@@ -631,8 +631,8 @@ export default function RulesPage() {
     <div className="w-full max-w-7xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
-          <h2 className="text-2xl font-semibold text-slate-900">Ingestion Rules</h2>
-          <p className="text-slate-500">Manage logic for data processing and filtering</p>
+          <h2 className="text-2xl font-semibold text-slate-900">Pricing Rules</h2>
+          <p className="text-slate-500">Manage pricing markup rules for product feeds</p>
         </div>
       </div>
 

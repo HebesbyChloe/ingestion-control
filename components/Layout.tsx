@@ -46,10 +46,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Define all navigation items with role requirements
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', canAccess: true },
+    { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds', canAccess: permissions.canAccessFeeds },
+    { id: 'feed-rules', label: 'Feed Rules', icon: Scale, href: '/feed-rules', canAccess: permissions.canAccessRules },
+    { id: 'pricing-rules', label: 'Pricing Rules', icon: Scale, href: '/pricing-rules', canAccess: permissions.canAccessRules },
     { id: 'schedules', label: 'Schedules', icon: CalendarClock, href: '/schedules', canAccess: permissions.canAccessSchedules },
     { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers', canAccess: permissions.canAccessWorkers },
-    { id: 'rules', label: 'Rules', icon: Scale, href: '/rules', canAccess: permissions.canAccessRules },
-    { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds', canAccess: permissions.canAccessFeeds },
     { id: 'admin-users', label: 'Admin Users', icon: Shield, href: '/admin/users', canAccess: permissions.canManageUsers },
     { id: 'admin-roles', label: 'Roles', icon: Settings, href: '/admin/roles', canAccess: permissions.canManageRoles },
   ];
@@ -101,6 +102,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith('/admin/roles')) return 'admin-roles';
     if (pathname.startsWith('/admin/users')) return 'admin-users';
     if (pathname.startsWith('/admin')) return 'admin-users';
+    if (pathname.startsWith('/feed-rules')) return 'feed-rules';
+    if (pathname.startsWith('/pricing-rules')) return 'pricing-rules';
     return pathname.replace('/', '') || 'dashboard';
   };
 
