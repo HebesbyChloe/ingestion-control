@@ -81,7 +81,8 @@ export async function PUT(request: NextRequest) {
     
     const body = await request.json();
     
-    const response = await fetch(`${API_GATEWAY_URL}/scheduler/schedules/${id}`, {
+    // Try PUT first, then PATCH if PUT is not supported
+    let response = await fetch(`${API_GATEWAY_URL}/scheduler/schedules/${id}`, {
       method: 'PUT',
       headers: {
         'X-API-Key': API_KEY,
@@ -90,10 +91,34 @@ export async function PUT(request: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    // If PUT returns 405 (Method Not Allowed) or 404, try PATCH
+    if (!response.ok && (response.status === 405 || response.status === 404)) {
+      console.log('PUT not supported, trying PATCH');
+      response = await fetch(`${API_GATEWAY_URL}/scheduler/schedules/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'X-API-Key': API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+    }
+
     if (!response.ok) {
-      const error = await response.text();
+      const errorText = await response.text();
+      console.error('Update schedule error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        endpoint: `${API_GATEWAY_URL}/scheduler/schedules/${id}`,
+        method: 'PUT/PATCH',
+        body: body,
+      });
       return NextResponse.json(
-        { error: 'Failed to update schedule', details: error },
+        { 
+          error: 'Failed to update schedule', 
+          details: errorText || `Status: ${response.status}` 
+        },
         { status: response.status }
       );
     }
@@ -103,7 +128,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating schedule:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
