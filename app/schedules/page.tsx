@@ -11,6 +11,7 @@ import { SERVICE_ENDPOINTS } from '@/lib/schedules/serviceEndpoints';
 import { CRON_PRESETS, cronToHuman } from '@/lib/schedules/cronUtils';
 import { CronBuilder } from '@/components/schedules/CronBuilder';
 import { ScheduleDetailsPanel } from '@/components/schedules/ScheduleDetailsPanel';
+import { feedsApi } from '@/lib/api/feeds';
 
 export default function SchedulesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -351,10 +352,42 @@ function CreateScheduleModal({
     target_service: 'worker',
     target_endpoint: '',
     http_method: 'POST',
+    payload: undefined as Record<string, any> | undefined,
+    headers: undefined as Record<string, string> | undefined,
   });
   
   const [selectedPreset, setSelectedPreset] = useState('0 */3 * * *');
   const [showAdvancedCron, setShowAdvancedCron] = useState(false);
+  const [payloadMode, setPayloadMode] = useState<'simple' | 'advanced'>('simple');
+  const [headersJson, setHeadersJson] = useState('{}');
+  const [headersError, setHeadersError] = useState<string | null>(null);
+  
+  // Structured payload fields for /ingestion/run
+  const [payloadFields, setPayloadFields] = useState({
+    feedKey: '',
+    tenantId: 1,
+    dryRun: false,
+    deltaMode: true,
+    reason: 'scheduled-cron',
+    maxRows: '' as string | number,
+    imageValidation: {
+      enabled: true,
+      fallbackUrl: 'https://cdn.shopify.com/s/files/1/0948/9635/7680/files/img_fallback_diamond.png?v=1764323437',
+      timeout: 3000,
+      cacheTimeout: 3600000,
+    },
+  });
+  
+  const [showImageValidation, setShowImageValidation] = useState(true);
+  const [payloadJson, setPayloadJson] = useState('{}');
+  const [payloadError, setPayloadError] = useState<string | null>(null);
+  
+  // Fetch feeds for feedKey dropdown
+  const { data: feeds = [] } = useQuery({
+    queryKey: ['feeds'],
+    queryFn: () => feedsApi.getAll(),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Get available endpoints based on selected service
   const availableEndpoints = SERVICE_ENDPOINTS[formData.target_service as keyof typeof SERVICE_ENDPOINTS] || [];
@@ -367,6 +400,14 @@ function CreateScheduleModal({
       target_endpoint: endpoint,
       http_method: selected?.method || 'GET',
     });
+    
+    // Reset payload mode based on endpoint
+    if (endpoint === '/ingestion/run') {
+      setPayloadMode('simple');
+    } else if (selected?.method === 'POST' || selected?.method === 'PUT') {
+      setPayloadMode('advanced');
+      setPayloadJson('{}');
+    }
   };
 
   // Handle preset change
@@ -391,9 +432,137 @@ function CreateScheduleModal({
     },
   });
 
+  // Convert structured fields to JSON
+  const convertFieldsToJson = (): string => {
+    const payload: Record<string, any> = {};
+    
+    if (payloadFields.feedKey) payload.feedKey = payloadFields.feedKey;
+    if (payloadFields.tenantId) payload.tenantId = payloadFields.tenantId;
+    payload.dryRun = payloadFields.dryRun;
+    payload.deltaMode = payloadFields.deltaMode;
+    if (payloadFields.reason) payload.reason = payloadFields.reason;
+    if (payloadFields.maxRows !== '' && payloadFields.maxRows !== null) {
+      payload.maxRows = payloadFields.maxRows === '' ? null : Number(payloadFields.maxRows);
+    }
+    
+    if (showImageValidation) {
+      payload.imageValidation = {
+        enabled: payloadFields.imageValidation.enabled,
+        fallbackUrl: payloadFields.imageValidation.fallbackUrl,
+        timeout: Number(payloadFields.imageValidation.timeout),
+        cacheTimeout: Number(payloadFields.imageValidation.cacheTimeout),
+      };
+    }
+    
+    return JSON.stringify(payload, null, 2);
+  };
+
+  // Build payload from structured fields
+  const buildPayloadFromFields = (): Record<string, any> | undefined => {
+    if (formData.target_endpoint !== '/ingestion/run' && formData.http_method !== 'POST' && formData.http_method !== 'PUT') {
+      return undefined;
+    }
+    
+    if (payloadMode === 'advanced') {
+      return parseJsonField(payloadJson, setPayloadError);
+    }
+    
+    // Build from structured fields
+    const payload: Record<string, any> = {};
+    
+    if (payloadFields.feedKey) payload.feedKey = payloadFields.feedKey;
+    if (payloadFields.tenantId) payload.tenantId = payloadFields.tenantId;
+    payload.dryRun = payloadFields.dryRun;
+    payload.deltaMode = payloadFields.deltaMode;
+    if (payloadFields.reason) payload.reason = payloadFields.reason;
+    if (payloadFields.maxRows !== '' && payloadFields.maxRows !== null) {
+      payload.maxRows = payloadFields.maxRows === '' ? null : Number(payloadFields.maxRows);
+    }
+    
+    if (showImageValidation) {
+      payload.imageValidation = {
+        enabled: payloadFields.imageValidation.enabled,
+        fallbackUrl: payloadFields.imageValidation.fallbackUrl,
+        timeout: Number(payloadFields.imageValidation.timeout),
+        cacheTimeout: Number(payloadFields.imageValidation.cacheTimeout),
+      };
+    }
+    
+    return Object.keys(payload).length > 0 ? payload : undefined;
+  };
+
+  // Handle payload mode switch
+  const handlePayloadModeSwitch = (newMode: 'simple' | 'advanced') => {
+    if (newMode === 'advanced' && payloadMode === 'simple') {
+      // Convert structured fields to JSON
+      setPayloadJson(convertFieldsToJson());
+    } else if (newMode === 'simple' && payloadMode === 'advanced') {
+      // Try to parse JSON back to structured fields (optional enhancement)
+      try {
+        const parsed = JSON.parse(payloadJson);
+        if (parsed.feedKey) setPayloadFields(prev => ({ ...prev, feedKey: parsed.feedKey }));
+        if (parsed.tenantId) setPayloadFields(prev => ({ ...prev, tenantId: parsed.tenantId }));
+        if (typeof parsed.dryRun === 'boolean') setPayloadFields(prev => ({ ...prev, dryRun: parsed.dryRun }));
+        if (typeof parsed.deltaMode === 'boolean') setPayloadFields(prev => ({ ...prev, deltaMode: parsed.deltaMode }));
+        if (parsed.reason) setPayloadFields(prev => ({ ...prev, reason: parsed.reason }));
+        if (parsed.maxRows !== undefined) setPayloadFields(prev => ({ ...prev, maxRows: parsed.maxRows || '' }));
+        if (parsed.imageValidation) {
+          setShowImageValidation(true);
+          setPayloadFields(prev => ({
+            ...prev,
+            imageValidation: {
+              enabled: parsed.imageValidation.enabled ?? true,
+              fallbackUrl: parsed.imageValidation.fallbackUrl || prev.imageValidation.fallbackUrl,
+              timeout: parsed.imageValidation.timeout ?? 3000,
+              cacheTimeout: parsed.imageValidation.cacheTimeout ?? 3600000,
+            },
+          }));
+        }
+      } catch (e) {
+        // If parsing fails, just switch mode - user can manually fix
+      }
+    }
+    setPayloadMode(newMode);
+  };
+
+  // Parse JSON fields
+  const parseJsonField = (jsonString: string, setError: (error: string | null) => void): any => {
+    if (!jsonString.trim()) return undefined;
+    try {
+      const parsed = JSON.parse(jsonString);
+      setError(null);
+      return parsed;
+    } catch (error) {
+      setError('Invalid JSON format');
+      return undefined;
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    
+    // Build payload based on mode
+    const payload = buildPayloadFromFields();
+    const headers = parseJsonField(headersJson, setHeadersError);
+    
+    // Don't submit if there are JSON errors
+    if (payloadError || headersError) {
+      return;
+    }
+    
+    // Validate required fields for simple mode
+    if (payloadMode === 'simple' && formData.target_endpoint === '/ingestion/run' && !payloadFields.feedKey) {
+      alert('Please select a feed key');
+      return;
+    }
+    
+    const submitData = {
+      ...formData,
+      payload: payload || undefined,
+      headers: headers || undefined,
+    };
+    
+    createMutation.mutate(submitData);
   };
 
   return (
@@ -504,6 +673,265 @@ function CreateScheduleModal({
                 Expression: {formData.cron_expression}
               </div>
             </div>
+            
+            {/* Payload field - only show for POST/PUT methods */}
+            {(formData.http_method === 'POST' || formData.http_method === 'PUT') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Payload
+                    <span className="text-xs text-slate-500 ml-2">Required for job execution</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePayloadModeSwitch('simple')}
+                      className={`text-xs px-3 py-1 rounded ${
+                        payloadMode === 'simple'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Simple
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePayloadModeSwitch('advanced')}
+                      className={`text-xs px-3 py-1 rounded ${
+                        payloadMode === 'advanced'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Advanced (JSON)
+                    </button>
+                  </div>
+                </div>
+
+                {payloadMode === 'simple' && formData.target_endpoint === '/ingestion/run' && formData.target_service === 'worker' ? (
+                  <div className="space-y-4 p-4 bg-slate-50 rounded border border-slate-200">
+                    {/* Feed Key */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-700">
+                        Feed Key <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        required
+                        className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white"
+                        value={payloadFields.feedKey}
+                        onChange={(e) => setPayloadFields({ ...payloadFields, feedKey: e.target.value })}
+                      >
+                        <option value="">Select a feed...</option>
+                        {feeds.map((feed) => (
+                          <option key={feed.id} value={feed.feed_key}>
+                            {feed.label} ({feed.feed_key})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Tenant ID */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-700">Tenant ID</label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white"
+                        value={payloadFields.tenantId}
+                        onChange={(e) => setPayloadFields({ ...payloadFields, tenantId: Number(e.target.value) })}
+                      />
+                    </div>
+
+                    {/* Boolean Options */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={payloadFields.dryRun}
+                          onChange={(e) => setPayloadFields({ ...payloadFields, dryRun: e.target.checked })}
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
+                        />
+                        <span className="text-sm text-slate-700">Dry Run</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={payloadFields.deltaMode}
+                          onChange={(e) => setPayloadFields({ ...payloadFields, deltaMode: e.target.checked })}
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
+                        />
+                        <span className="text-sm text-slate-700">Delta Mode</span>
+                      </label>
+                    </div>
+
+                    {/* Reason */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-700">Reason</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white"
+                        value={payloadFields.reason}
+                        onChange={(e) => setPayloadFields({ ...payloadFields, reason: e.target.value })}
+                        placeholder="scheduled-cron"
+                      />
+                    </div>
+
+                    {/* Max Rows */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-slate-700">
+                        Max Rows <span className="text-xs text-slate-500">(leave empty for no limit)</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white"
+                        value={payloadFields.maxRows}
+                        onChange={(e) => setPayloadFields({ ...payloadFields, maxRows: e.target.value || '' })}
+                        placeholder="No limit"
+                      />
+                    </div>
+
+                    {/* Image Validation Section */}
+                    <div className="border-t border-slate-300 pt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showImageValidation}
+                            onChange={(e) => setShowImageValidation(e.target.checked)}
+                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
+                          />
+                          <span className="text-sm font-medium text-slate-700">Image Validation</span>
+                        </label>
+                      </div>
+                      
+                      {showImageValidation && (
+                        <div className="space-y-3 pl-6 border-l-2 border-indigo-200">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={payloadFields.imageValidation.enabled}
+                              onChange={(e) => setPayloadFields({
+                                ...payloadFields,
+                                imageValidation: { ...payloadFields.imageValidation, enabled: e.target.checked }
+                              })}
+                              className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
+                            />
+                            <span className="text-sm text-slate-700">Enabled</span>
+                          </label>
+                          
+                          <div>
+                            <label className="block text-sm font-medium mb-1 text-slate-700">Fallback URL</label>
+                            <input
+                              type="url"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-sm"
+                              value={payloadFields.imageValidation.fallbackUrl}
+                              onChange={(e) => setPayloadFields({
+                                ...payloadFields,
+                                imageValidation: { ...payloadFields.imageValidation, fallbackUrl: e.target.value }
+                              })}
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium mb-1 text-slate-700">Timeout (ms)</label>
+                              <input
+                                type="number"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-sm"
+                                value={payloadFields.imageValidation.timeout}
+                                onChange={(e) => setPayloadFields({
+                                  ...payloadFields,
+                                  imageValidation: { ...payloadFields.imageValidation, timeout: Number(e.target.value) }
+                                })}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1 text-slate-700">Cache Timeout (ms)</label>
+                              <input
+                                type="number"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-sm"
+                                value={payloadFields.imageValidation.cacheTimeout}
+                                onChange={(e) => setPayloadFields({
+                                  ...payloadFields,
+                                  imageValidation: { ...payloadFields.imageValidation, cacheTimeout: Number(e.target.value) }
+                                })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <textarea
+                      className={`w-full px-3 py-2 border rounded-md bg-white font-mono text-sm ${
+                        payloadError ? 'border-red-300' : 'border-slate-200'
+                      }`}
+                      rows={10}
+                      placeholder={
+                        formData.target_endpoint === '/ingestion/run'
+                          ? JSON.stringify({
+                              feedKey: 'idex-natural',
+                              tenantId: 1,
+                              dryRun: false,
+                              deltaMode: true,
+                              reason: 'scheduled-cron',
+                              maxRows: null,
+                              imageValidation: {
+                                enabled: true,
+                                fallbackUrl: 'https://cdn.shopify.com/s/files/1/0948/9635/7680/files/img_fallback_diamond.png?v=1764323437',
+                                timeout: 3000,
+                                cacheTimeout: 3600000,
+                              },
+                            }, null, 2)
+                          : '{\n  "key": "value"\n}'
+                      }
+                      value={payloadJson}
+                      onChange={(e) => {
+                        setPayloadJson(e.target.value);
+                        parseJsonField(e.target.value, setPayloadError);
+                      }}
+                    />
+                    {payloadError && (
+                      <p className="text-xs text-red-600 mt-1">{payloadError}</p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">
+                      Enter JSON payload to send with the request
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Headers field */}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">
+                Headers (JSON)
+                <span className="text-xs text-slate-500 ml-2">Optional</span>
+              </label>
+              <textarea
+                className={`w-full px-3 py-2 border rounded-md bg-white font-mono text-sm ${
+                  headersError ? 'border-red-300' : 'border-slate-200'
+                }`}
+                rows={4}
+                placeholder='{\n  "Content-Type": "application/json",\n  "Authorization": "Bearer token"\n}'
+                value={headersJson}
+                onChange={(e) => {
+                  setHeadersJson(e.target.value);
+                  const parsed = parseJsonField(e.target.value, setHeadersError);
+                  if (!headersError && parsed) {
+                    setFormData({ ...formData, headers: parsed });
+                  }
+                }}
+              />
+              {headersError && (
+                <p className="text-xs text-red-600 mt-1">{headersError}</p>
+              )}
+              <p className="text-xs text-slate-500 mt-1">
+                Custom HTTP headers (e.g., Authorization, Content-Type)
+              </p>
+            </div>
+            
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
