@@ -44,8 +44,16 @@ export function useFeedRules(feedId: number | null) {
   // Update local rules when fetched rules change
   useEffect(() => {
     if (rules) {
-      setLocalRules(rules);
-      setInitialRules(JSON.stringify(rules));
+      // Ensure all rule arrays are actually arrays (safety check)
+      const safeRules: FeedRulesConfig = {
+        filters: Array.isArray(rules.filters) ? rules.filters : [],
+        fieldMappings: Array.isArray(rules.fieldMappings) ? rules.fieldMappings : [],
+        fieldTransformations: Array.isArray(rules.fieldTransformations) ? rules.fieldTransformations : [],
+        calculatedFields: Array.isArray(rules.calculatedFields) ? rules.calculatedFields : [],
+        shardRules: Array.isArray(rules.shardRules) ? rules.shardRules : [],
+      };
+      setLocalRules(safeRules);
+      setInitialRules(JSON.stringify(safeRules));
     }
   }, [rules]);
 

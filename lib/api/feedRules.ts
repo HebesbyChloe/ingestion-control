@@ -134,12 +134,13 @@ export const feedRulesApi = {
       }
 
       // Return full rules object with defaults for missing properties
+      // Ensure each property is an array (handle cases where it might be an object or other type)
       return {
-        filters: rules.filters || [],
-        fieldMappings: rules.fieldMappings || [],
-        fieldTransformations: rules.fieldTransformations || [],
-        calculatedFields: rules.calculatedFields || [],
-        shardRules: rules.shardRules || [],
+        filters: Array.isArray(rules.filters) ? rules.filters : [],
+        fieldMappings: Array.isArray(rules.fieldMappings) ? rules.fieldMappings : [],
+        fieldTransformations: Array.isArray(rules.fieldTransformations) ? rules.fieldTransformations : [],
+        calculatedFields: Array.isArray(rules.calculatedFields) ? rules.calculatedFields : [],
+        shardRules: Array.isArray(rules.shardRules) ? rules.shardRules : [],
       };
     } catch (error) {
       console.error('Error fetching feed rules:', error);
