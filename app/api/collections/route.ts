@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Support multiple env variable naming conventions
+// For server-side API routes, we don't need NEXT_PUBLIC_ prefix
+// NEXT_PUBLIC_ is only needed for client-side code
+// But we keep fallbacks for flexibility
 const TYPESENSE_URL = process.env.TYPESENSE_URL || 
                       process.env.NEXT_PUBLIC_TYPESENSE_URL || 
                       '';
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${TYPESENSE_URL}/collections`, {
       method: 'GET',
       headers: {
-        'X-TYPESENSE-API-KEY': TYPESENSE_API_KEY,
+        'x-typesense-api-key': TYPESENSE_API_KEY,
         'Content-Type': 'application/json',
       },
     });

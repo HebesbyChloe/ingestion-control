@@ -36,7 +36,7 @@ export async function GET(
     const response = await fetch(searchUrl, {
       method: 'GET',
       headers: {
-        'X-TYPESENSE-API-KEY': TYPESENSE_API_KEY,
+        'x-typesense-api-key': TYPESENSE_API_KEY,
         'Content-Type': 'application/json',
       },
     });
