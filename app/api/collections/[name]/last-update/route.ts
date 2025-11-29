@@ -11,10 +11,10 @@ const TYPESENSE_API_KEY = process.env['TYPESENSE-SEARCH-X-TYPESENSE-API-KEY'] ||
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    const collectionName = params.name;
+    const { name: collectionName } = await params;
 
     if (!collectionName) {
       return NextResponse.json(
