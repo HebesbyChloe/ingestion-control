@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const TYPESENSE_URL = process.env.TYPESENSE_URL || 
                       process.env.NEXT_PUBLIC_TYPESENSE_URL || 
                       '';
-const TYPESENSE_API_KEY = process.env['TYPESENSE-SEARCH-X-TYPESENSE-API-KEY'] || 
+const TYPESENSE_API_KEY = process.env.TYPESENSE_SEARCH_X_TYPESENSE_API_KEY ||
                           process.env.TYPESENSE_SEARCH_API_KEY ||
                           process.env.NEXT_PUBLIC_TYPESENSE_SEARCH_API_KEY || 
                           '';
