@@ -8,40 +8,40 @@ const API_KEY = process.env.GATEWAY_API_KEY || process.env.NEXT_PUBLIC_GATEWAY_A
 const executingSchedules = new Map<string, number>();
 
 export async function POST(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const id = searchParams.get('id');
+  
+  if (!id) {
+    return NextResponse.json(
+      { error: 'Schedule ID is required' },
+      { status: 400 }
+    );
+  }
+  
+  // Prevent duplicate execution: check if this schedule is already being executed
+  const executionKey = `schedule-${id}`;
+  const now = Date.now();
+  const lastExecution = executingSchedules.get(executionKey);
+  
+  // If executed within last 2 seconds, reject as duplicate
+  if (lastExecution && (now - lastExecution) < 2000) {
+    return NextResponse.json(
+      { error: 'Schedule execution already in progress. Please wait...' },
+      { status: 429 } // Too Many Requests
+    );
+  }
+  
+  // Mark as executing
+  executingSchedules.set(executionKey, now);
+  
+  // Clean up old entries (older than 30 seconds)
+  for (const [key, timestamp] of executingSchedules.entries()) {
+    if (now - timestamp > 30000) {
+      executingSchedules.delete(key);
+    }
+  }
+  
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const id = searchParams.get('id');
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Schedule ID is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Prevent duplicate execution: check if this schedule is already being executed
-    const executionKey = `schedule-${id}`;
-    const now = Date.now();
-    const lastExecution = executingSchedules.get(executionKey);
-    
-    // If executed within last 2 seconds, reject as duplicate
-    if (lastExecution && (now - lastExecution) < 2000) {
-      return NextResponse.json(
-        { error: 'Schedule execution already in progress. Please wait...' },
-        { status: 429 } // Too Many Requests
-      );
-    }
-    
-    // Mark as executing
-    executingSchedules.set(executionKey, now);
-    
-    // Clean up old entries (older than 30 seconds)
-    for (const [key, timestamp] of executingSchedules.entries()) {
-      if (now - timestamp > 30000) {
-        executingSchedules.delete(key);
-      }
-    }
-    
     // First, fetch the schedule to get its payload
     const scheduleResponse = await fetch(`${API_GATEWAY_URL}/rest/sys_schedules?id=eq.${id}`, {
       headers: {
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!scheduleResponse.ok) {
+      executingSchedules.delete(executionKey);
       return NextResponse.json(
         { error: 'Failed to fetch schedule' },
         { status: scheduleResponse.status }
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
 
     const schedules = await scheduleResponse.json();
     if (!schedules || schedules.length === 0) {
+      executingSchedules.delete(executionKey);
       return NextResponse.json(
         { error: 'Schedule not found' },
         { status: 404 }
@@ -95,6 +97,7 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const error = await response.text();
+      executingSchedules.delete(executionKey);
       return NextResponse.json(
         { error: 'Failed to execute schedule', details: error },
         { status: response.status }
