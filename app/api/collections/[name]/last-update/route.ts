@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Support multiple env variable naming conventions
-const TYPESENSE_URL = process.env.TYPESENSE_URL || 
-                      process.env.NEXT_PUBLIC_TYPESENSE_URL || 
-                      '';
-const TYPESENSE_API_KEY = process.env.TYPESENSE_SEARCH_X_TYPESENSE_API_KEY ||
-                          process.env.TYPESENSE_SEARCH_API_KEY ||
-                          process.env.NEXT_PUBLIC_TYPESENSE_SEARCH_API_KEY || 
-                          '';
+// Use Gateway instead of direct Typesense connection
+const API_GATEWAY_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'https://api-gateway-dfcflow.fly.dev';
+const GATEWAY_API_KEY = process.env.GATEWAY_API_KEY || process.env.NEXT_PUBLIC_GATEWAY_API_KEY || '';
 
 export async function GET(
   request: NextRequest,
@@ -23,20 +18,31 @@ export async function GET(
       );
     }
 
-    if (!TYPESENSE_URL || !TYPESENSE_API_KEY) {
+    if (!GATEWAY_API_KEY) {
       return NextResponse.json(
-        { error: 'Typesense configuration missing' },
+        { error: 'Gateway configuration missing' },
         { status: 500 }
       );
     }
 
-    // Search for the most recent document sorted by updated_at
-    const searchUrl = `${TYPESENSE_URL}/collections/${collectionName}/documents/search?q=*&sort_by=updated_at:desc&per_page=1`;
+    // Use Gateway search endpoints for known collections
+    // Gateway supports query parameters: q, sort_by, per_page
+    let searchUrl: string;
+    if (collectionName === 'natural') {
+      searchUrl = `${API_GATEWAY_URL}/search/natural?q=*&sort_by=updated_at:desc&per_page=1`;
+    } else if (collectionName === 'lab-grown') {
+      searchUrl = `${API_GATEWAY_URL}/search/labgrown?q=*&sort_by=updated_at:desc&per_page=1`;
+    } else {
+      // For other collections (like external_feed), return null
+      // TODO: Add gateway route for generic collection search if needed
+      console.warn(`Collection ${collectionName} not mapped to gateway search route`);
+      return NextResponse.json({ last_updated_at: null });
+    }
     
     const response = await fetch(searchUrl, {
       method: 'GET',
       headers: {
-        'x-typesense-api-key': TYPESENSE_API_KEY,
+        'X-API-Key': GATEWAY_API_KEY,
         'Content-Type': 'application/json',
       },
     });
@@ -48,7 +54,7 @@ export async function GET(
       }
       
       const errorText = await response.text();
-      console.error('Typesense search error:', errorText);
+      console.error('Gateway search error:', errorText);
       return NextResponse.json(
         { error: 'Failed to fetch last update', details: errorText },
         { status: response.status }
@@ -57,12 +63,24 @@ export async function GET(
 
     const data = await response.json();
     
-    // Extract updated_at from the first document
-    if (data.hits && data.hits.length > 0 && data.hits[0].document) {
-      const document = data.hits[0].document;
-      const updatedAt = document.updated_at;
+    // Gateway returns normalized format: { hits: [...], total: number, page: number }
+    // Each hit has: { id, updated_at, ... } or { document: { updated_at, ... } }
+    if (data.hits && data.hits.length > 0) {
+      const hit = data.hits[0];
       
-      // Convert to Unix timestamp if it's a string or Date
+      // Gateway normalizes the response, so updated_at might be directly on the hit
+      // or in a document field, or in raw field
+      let updatedAt: any = null;
+      
+      if (hit.updated_at !== undefined) {
+        updatedAt = hit.updated_at;
+      } else if (hit.document && hit.document.updated_at !== undefined) {
+        updatedAt = hit.document.updated_at;
+      } else if (hit.raw && hit.raw.updated_at !== undefined) {
+        updatedAt = hit.raw.updated_at;
+      }
+      
+      // Convert to Unix timestamp
       let timestamp: number | null = null;
       
       if (typeof updatedAt === 'number') {
@@ -80,10 +98,12 @@ export async function GET(
         }
       }
       
-      return NextResponse.json({ last_updated_at: timestamp });
+      if (timestamp !== null) {
+        return NextResponse.json({ last_updated_at: timestamp });
+      }
     }
 
-    // No documents found
+    // No documents found or no updated_at field
     return NextResponse.json({ last_updated_at: null });
   } catch (error) {
     console.error('Error fetching last update:', error);
