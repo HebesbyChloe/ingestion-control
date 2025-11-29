@@ -8,11 +8,15 @@ import { rolesApi, type Permission } from '@/lib/api/roles';
 // Fallback permissions for backward compatibility
 const getFallbackPermissions = (role: string) => {
   const roleLower = role.toLowerCase();
+  const canAccessSchedules = ['user', 'developer', 'admin', 'staff'].includes(roleLower);
+  const canAccessWorkers = ['user', 'developer', 'admin', 'staff'].includes(roleLower);
+
   return {
     // Page access
     canAccessDashboard: true,
-    canAccessSchedules: ['user', 'developer', 'admin', 'staff'].includes(roleLower),
-    canAccessWorkers: ['user', 'developer', 'admin', 'staff'].includes(roleLower),
+    canAccessSchedules,
+    canAccessWorkers,
+    canAccessMonitoring: canAccessSchedules || canAccessWorkers,
     canAccessFeeds: ['developer', 'admin', 'staff'].includes(roleLower),
     canAccessRules: ['accountant', 'developer', 'admin', 'staff'].includes(roleLower),
     canAccessAdmin: roleLower === 'admin',
@@ -30,7 +34,7 @@ const getFallbackPermissions = (role: string) => {
     canEditRules: ['accountant', 'developer', 'admin', 'staff'].includes(roleLower),
     canDeleteRules: ['developer', 'admin'].includes(roleLower),
     
-    canViewWorkers: ['user', 'developer', 'admin', 'staff'].includes(roleLower),
+    canViewWorkers: canAccessWorkers,
     
     canManageUsers: roleLower === 'admin',
     canManageRoles: roleLower === 'admin',
@@ -72,6 +76,10 @@ export function usePermissions() {
       canAccessDashboard: permissionSet.has('dashboard.view'),
       canAccessSchedules: permissionSet.has('schedules.view'),
       canAccessWorkers: permissionSet.has('workers.view'),
+      canAccessMonitoring:
+        permissionSet.has('monitoring.view') ||
+        permissionSet.has('schedules.view') ||
+        permissionSet.has('workers.view'),
       canAccessFeeds: permissionSet.has('feeds.view'),
       canAccessRules: permissionSet.has('rules.view'),
       canAccessAdmin: permissionSet.has('admin.users.view') || permissionSet.has('admin.roles.view'),

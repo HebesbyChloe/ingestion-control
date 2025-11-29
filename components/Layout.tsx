@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, DollarSign, Layers } from 'lucide-react';
+import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, DollarSign, Layers, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
 import { useState } from 'react';
@@ -53,6 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { id: 'markup-rules', label: 'Markup Rules', icon: DollarSign, href: '/markup-rules', canAccess: permissions.canAccessRules },
     { id: 'schedules', label: 'Schedules', icon: CalendarClock, href: '/schedules', canAccess: permissions.canAccessSchedules },
     { id: 'workers', label: 'Jobs', icon: Zap, href: '/workers', canAccess: permissions.canAccessWorkers },
+    { id: 'monitoring', label: 'Monitoring', icon: AlertTriangle, href: '/monitoring', canAccess: permissions.canAccessMonitoring },
     { id: 'admin-users', label: 'Admin Users', icon: Shield, href: '/admin/users', canAccess: permissions.canManageUsers },
     { id: 'admin-roles', label: 'Roles', icon: Settings, href: '/admin/roles', canAccess: permissions.canManageRoles },
   ];
@@ -108,6 +109,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith('/pricing-rules')) return 'pricing-rules';
     if (pathname.startsWith('/markup-rules')) return 'markup-rules';
     if (pathname.startsWith('/collections')) return 'collections';
+    if (pathname.startsWith('/monitoring')) return 'monitoring';
     return pathname.replace('/', '') || 'dashboard';
   };
 

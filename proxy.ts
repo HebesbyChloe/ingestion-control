@@ -14,7 +14,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protected routes that need authentication
-  const protectedRoutes = ['/dashboard', '/feeds', '/collections', '/schedules', '/workers', '/rules', '/admin'];
+  const protectedRoutes = ['/dashboard', '/feeds', '/collections', '/schedules', '/workers', '/monitoring', '/rules', '/admin'];
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
   if (isProtectedRoute) {
@@ -97,11 +97,11 @@ export async function proxy(request: NextRequest) {
     
     // Define allowed routes per role
     const roleBasedRoutes: Record<string, string[]> = {
-      user: ['/dashboard', '/workers', '/schedules'],
-      developer: ['/dashboard', '/schedules', '/workers', '/feeds', '/collections'],
+      user: ['/dashboard', '/workers', '/schedules', '/monitoring'],
+      developer: ['/dashboard', '/schedules', '/workers', '/monitoring', '/feeds', '/collections'],
       accountant: ['/dashboard', '/rules'],
-      admin: ['/dashboard', '/feeds', '/collections', '/schedules', '/workers', '/rules', '/admin'],
-      staff: ['/dashboard', '/schedules', '/workers', '/feeds', '/collections'], // Legacy support
+      admin: ['/dashboard', '/feeds', '/collections', '/schedules', '/workers', '/monitoring', '/rules', '/admin'],
+      staff: ['/dashboard', '/schedules', '/workers', '/monitoring', '/feeds', '/collections'], // Legacy support
     };
 
     // Check if user's role has access to this route
