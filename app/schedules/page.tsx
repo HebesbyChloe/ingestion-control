@@ -90,6 +90,11 @@ export default function SchedulesPage() {
   };
 
   const handleExecute = (id: number) => {
+    // Prevent double-click: check if already executing this schedule
+    if (executingScheduleId === id) {
+      return; // Already executing, ignore duplicate click
+    }
+    
     executeMutation.mutate(id, {
       onSuccess: () => {
         alert('Schedule executed successfully!');
