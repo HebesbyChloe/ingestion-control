@@ -42,57 +42,14 @@ export async function POST(request: NextRequest) {
   }
   
   try {
-    // First, fetch the schedule to get its payload
-    const scheduleResponse = await fetch(`${API_GATEWAY_URL}/rest/sys_schedules?id=eq.${id}`, {
-      headers: {
-        'X-API-Key': API_KEY,
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!scheduleResponse.ok) {
-      executingSchedules.delete(executionKey);
-      return NextResponse.json(
-        { error: 'Failed to fetch schedule' },
-        { status: scheduleResponse.status }
-      );
-    }
-
-    const schedules = await scheduleResponse.json();
-    if (!schedules || schedules.length === 0) {
-      executingSchedules.delete(executionKey);
-      return NextResponse.json(
-        { error: 'Schedule not found' },
-        { status: 404 }
-      );
-    }
-
-    const schedule = schedules[0];
-    
-    // Modify payload for manual execution: override reason to "manual-execution"
-    let modifiedPayload: Record<string, any> = {};
-    
-    // Start with existing payload if it exists
-    if (schedule.payload && typeof schedule.payload === 'object') {
-      modifiedPayload = { ...schedule.payload };
-    }
-    
-    // Override reason for manual execution
-    modifiedPayload.reason = 'manual-execution';
-    
-    // Gateway now correctly routes /scheduler/schedules/{id}/execute to scheduler service
-    // Send the modified payload with reason="manual-execution"
-    // The scheduler service may accept payload override in the request body
+    // Call scheduler service execute endpoint directly
     const response = await fetch(`${API_GATEWAY_URL}/scheduler/schedules/${id}/execute`, {
       method: 'POST',
       headers: {
         'X-API-Key': API_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        payload: modifiedPayload,
-        payloadOverride: true, // Flag to indicate this is a manual execution with payload override
-      }),
+      body: JSON.stringify({}), // Scheduler handles payload/reason override internally
     });
 
     if (!response.ok) {
