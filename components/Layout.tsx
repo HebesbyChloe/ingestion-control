@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, DollarSign } from 'lucide-react';
+import { LayoutDashboard, CalendarClock, Scale, Radio, Activity, Settings, Bell, Zap, Menu, X, LogOut, Shield, DollarSign, Layers } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
 import { useState } from 'react';
@@ -47,6 +47,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', canAccess: true },
     { id: 'feeds', label: 'Feeds', icon: Radio, href: '/feeds', canAccess: permissions.canAccessFeeds },
+    { id: 'collections', label: 'Collections', icon: Layers, href: '/collections', canAccess: permissions.canAccessFeeds },
     { id: 'feed-rules', label: 'Feed Rules', icon: Scale, href: '/feed-rules', canAccess: permissions.canAccessRules },
     { id: 'pricing-rules', label: 'Pricing Rules', icon: Scale, href: '/pricing-rules', canAccess: permissions.canAccessRules },
     { id: 'markup-rules', label: 'Markup Rules', icon: DollarSign, href: '/markup-rules', canAccess: permissions.canAccessRules },
@@ -106,6 +107,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith('/feed-rules')) return 'feed-rules';
     if (pathname.startsWith('/pricing-rules')) return 'pricing-rules';
     if (pathname.startsWith('/markup-rules')) return 'markup-rules';
+    if (pathname.startsWith('/collections')) return 'collections';
     return pathname.replace('/', '') || 'dashboard';
   };
 
