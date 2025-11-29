@@ -11,9 +11,31 @@ const TYPESENSE_API_KEY = process.env.TYPESENSE_SEARCH_X_TYPESENSE_API_KEY ||
 
 export async function GET(request: NextRequest) {
   try {
+    // Debug logging (only in development or when explicitly enabled)
+    const isDebug = process.env.NODE_ENV === 'development' || process.env.DEBUG_TYPESENSE === 'true';
+    
+    if (isDebug) {
+      console.log('Typesense Config Check:', {
+        hasUrl: !!TYPESENSE_URL,
+        urlLength: TYPESENSE_URL?.length || 0,
+        hasKey: !!TYPESENSE_API_KEY,
+        keyLength: TYPESENSE_API_KEY?.length || 0,
+        keyPrefix: TYPESENSE_API_KEY ? TYPESENSE_API_KEY.substring(0, 8) + '...' : 'missing',
+      });
+    }
+
     if (!TYPESENSE_URL || !TYPESENSE_API_KEY) {
+      const missing = [];
+      if (!TYPESENSE_URL) missing.push('TYPESENSE_URL');
+      if (!TYPESENSE_API_KEY) missing.push('TYPESENSE_SEARCH_X_TYPESENSE_API_KEY');
+      
+      console.error('Typesense configuration missing:', missing);
       return NextResponse.json(
-        { error: 'Typesense configuration missing. Please set TYPESENSE_URL and TYPESENSE_SEARCH_X_TYPESENSE_API_KEY' },
+        { 
+          error: 'Typesense configuration missing', 
+          details: `Missing environment variables: ${missing.join(', ')}`,
+          hint: 'Please set TYPESENSE_URL and TYPESENSE_SEARCH_X_TYPESENSE_API_KEY in your environment variables'
+        },
         { status: 500 }
       );
     }
@@ -28,7 +50,25 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Typesense API error:', errorText);
+      console.error('Typesense API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url: `${TYPESENSE_URL}/collections`,
+      });
+      
+      // Provide more helpful error messages
+      if (response.status === 401) {
+        return NextResponse.json(
+          { 
+            error: 'Typesense authentication failed', 
+            details: 'Invalid or missing API key. Please check TYPESENSE_SEARCH_X_TYPESENSE_API_KEY environment variable.',
+            hint: 'Make sure the API key is correct and has read permissions for collections'
+          },
+          { status: 401 }
+        );
+      }
+      
       return NextResponse.json(
         { error: 'Failed to fetch collections from Typesense', details: errorText },
         { status: response.status }
