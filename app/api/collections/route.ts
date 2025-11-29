@@ -46,12 +46,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${TYPESENSE_URL}/collections`, {
-      method: 'GET',
+    // Create headers object to ensure it's properly formatted
+    const headers = new Headers();
+    headers.set('x-typesense-api-key', TYPESENSE_API_KEY);
+    headers.set('Content-Type', 'application/json');
+    
+    console.log('Making Typesense request:', {
+      url: `${TYPESENSE_URL}/collections`,
       headers: {
-        'x-typesense-api-key': TYPESENSE_API_KEY,
+        'x-typesense-api-key': TYPESENSE_API_KEY ? `${TYPESENSE_API_KEY.substring(0, 8)}...` : 'MISSING',
         'Content-Type': 'application/json',
       },
+    });
+
+    const response = await fetch(`${TYPESENSE_URL}/collections`, {
+      method: 'GET',
+      headers: headers,
     });
 
     if (!response.ok) {
