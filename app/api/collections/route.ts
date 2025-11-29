@@ -11,18 +11,22 @@ const TYPESENSE_API_KEY = process.env.TYPESENSE_SEARCH_X_TYPESENSE_API_KEY ||
 
 export async function GET(request: NextRequest) {
   try {
-    // Debug logging (only in development or when explicitly enabled)
-    const isDebug = process.env.NODE_ENV === 'development' || process.env.DEBUG_TYPESENSE === 'true';
-    
-    if (isDebug) {
-      console.log('Typesense Config Check:', {
-        hasUrl: !!TYPESENSE_URL,
-        urlLength: TYPESENSE_URL?.length || 0,
-        hasKey: !!TYPESENSE_API_KEY,
-        keyLength: TYPESENSE_API_KEY?.length || 0,
-        keyPrefix: TYPESENSE_API_KEY ? TYPESENSE_API_KEY.substring(0, 8) + '...' : 'missing',
-      });
-    }
+    // Always log in production to help debug Vercel issues
+    console.log('Typesense Config Check:', {
+      hasUrl: !!TYPESENSE_URL,
+      urlLength: TYPESENSE_URL?.length || 0,
+      urlPreview: TYPESENSE_URL ? `${TYPESENSE_URL.substring(0, 20)}...` : 'missing',
+      hasKey: !!TYPESENSE_API_KEY,
+      keyLength: TYPESENSE_API_KEY?.length || 0,
+      keyPrefix: TYPESENSE_API_KEY ? TYPESENSE_API_KEY.substring(0, 8) + '...' : 'missing',
+      envVarsChecked: [
+        'TYPESENSE_URL',
+        'NEXT_PUBLIC_TYPESENSE_URL',
+        'TYPESENSE_SEARCH_X_TYPESENSE_API_KEY',
+        'TYPESENSE_SEARCH_API_KEY',
+        'NEXT_PUBLIC_TYPESENSE_SEARCH_API_KEY',
+      ],
+    });
 
     if (!TYPESENSE_URL || !TYPESENSE_API_KEY) {
       const missing = [];
