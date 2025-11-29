@@ -24,7 +24,12 @@ export default function FeedSelector({ selectedFeedId, onSelectFeed }: FeedSelec
 
   const selectedFeed = feeds?.find(f => f.id === selectedFeedId);
   const fieldSchema = selectedFeed?.field_schema;
-  const hasFields = fieldSchema && fieldSchema.fields && fieldSchema.fields.length > 0;
+  // Safely check if field_schema exists and has valid fields array
+  const hasFields = fieldSchema && 
+                    typeof fieldSchema === 'object' && 
+                    'fields' in fieldSchema && 
+                    Array.isArray(fieldSchema.fields) && 
+                    fieldSchema.fields.length > 0;
 
   return (
     <Card className="border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white">
@@ -128,9 +133,9 @@ export default function FeedSelector({ selectedFeedId, onSelectFeed }: FeedSelec
                   )}
                 </Button>
 
-                {showFieldSchema && (
+                {showFieldSchema && hasFields && (
                   <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
-                    {fieldSchema.fields.map((field, index) => (
+                    {fieldSchema?.fields?.map((field, index) => (
                       <div
                         key={index}
                         className="p-3 bg-white border border-slate-200 rounded-lg hover:border-indigo-200 transition-colors"

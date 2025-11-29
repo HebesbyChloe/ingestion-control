@@ -22,8 +22,23 @@ export function useFeedRules(feedId: number | null) {
     error,
   } = useQuery({
     queryKey: ['feedRules', feedId],
-    queryFn: () => feedRulesApi.getFeedRules(feedId!),
+    queryFn: async () => {
+      try {
+        return await feedRulesApi.getFeedRules(feedId!);
+      } catch (err) {
+        console.error('Error fetching feed rules:', err);
+        // Return empty rules config on error instead of throwing
+        return {
+          filters: [],
+          fieldMappings: [],
+          fieldTransformations: [],
+          calculatedFields: [],
+          shardRules: [],
+        };
+      }
+    },
     enabled: feedId !== null,
+    retry: 1,
   });
 
   // Update local rules when fetched rules change

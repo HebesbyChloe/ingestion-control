@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Save, AlertTriangle } from 'lucide-react';
+import { Plus, Save, AlertTriangle, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import FeedSelector from '@/components/feedRules/FeedSelector';
 import FeedRuleTypeTabs from '@/components/feedRules/FeedRuleTypeTabs';
 import FilterRulesTable from '@/components/feedRules/FilterRulesTable';
@@ -17,7 +19,7 @@ import JsonPreviewPanel from '@/components/feedRules/JsonPreviewPanel';
 import { useFeedRules } from '@/hooks/useFeedRules';
 import { useFeedRulesMutations } from '@/hooks/useFeedRulesMutations';
 import { feedsApi } from '@/lib/api/feeds';
-import type { FeedRulesConfig } from '@/lib/api/feedRules';
+import { feedRulesApi, type FeedRulesConfig } from '@/lib/api/feedRules';
 
 type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculatedFields' | 'shardRules';
 
@@ -31,12 +33,21 @@ export default function FeedRulesPage() {
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
   const [selectedRuleType, setSelectedRuleType] = useState<RuleType>('filters');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [copyToFeedId, setCopyToFeedId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   // Fetch the selected feed to get field schema
   const { data: selectedFeed } = useQuery({
     queryKey: ['feed', selectedFeedId],
     queryFn: () => selectedFeedId ? feedsApi.getById(selectedFeedId) : null,
     enabled: !!selectedFeedId,
+  });
+
+  // Fetch all feeds for copy dialog
+  const { data: allFeeds = [] } = useQuery({
+    queryKey: ['feeds'],
+    queryFn: () => feedsApi.getAll(),
   });
 
   // Fetch rules for selected feed
@@ -65,6 +76,37 @@ export default function FeedRulesPage() {
         alert(`Failed to save rules: ${error instanceof Error ? error.message : 'Unknown error'}`);
       },
     });
+  };
+
+  const handleCopyRules = async () => {
+    if (!selectedFeedId || !copyToFeedId) {
+      alert('Please select both source and target feeds');
+      return;
+    }
+
+    if (selectedFeedId === copyToFeedId) {
+      alert('Source and target feeds cannot be the same');
+      return;
+    }
+
+    try {
+      // Get rules from source feed
+      const sourceRules = await feedRulesApi.getFeedRules(selectedFeedId);
+      
+      // Copy rules to target feed
+      await feedRulesApi.updateFeedRules(copyToFeedId, sourceRules);
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ['feedRules'] });
+      queryClient.invalidateQueries({ queryKey: ['feeds'] });
+      
+      alert(`Successfully copied rules from feed ID ${selectedFeedId} to feed ID ${copyToFeedId}`);
+      setShowCopyDialog(false);
+      setCopyToFeedId(null);
+    } catch (error) {
+      console.error('Failed to copy rules:', error);
+      alert(`Failed to copy rules: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Get count for each rule type
@@ -117,6 +159,14 @@ export default function FeedRulesPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowCopyDialog(true)}
+                className="gap-2"
+              >
+                <Copy className="w-4 h-4" />
+                Copy Rules
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowJsonPreview(!showJsonPreview)}
@@ -219,6 +269,70 @@ export default function FeedRulesPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Copy Rules Dialog */}
+      <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copy Feed Rules</DialogTitle>
+            <DialogDescription>
+              Copy all rules from the current feed to another feed. This will overwrite the target feed's existing rules.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                Source Feed (Current)
+              </label>
+              <div className="p-3 bg-slate-50 rounded border border-slate-200">
+                {selectedFeed && (
+                  <div>
+                    <div className="font-medium">{selectedFeed.label}</div>
+                    <div className="text-sm text-slate-500">{selectedFeed.feed_key} (ID: {selectedFeed.id})</div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                Target Feed (Copy To)
+              </label>
+              <Select
+                value={copyToFeedId?.toString() || ''}
+                onValueChange={(value) => setCopyToFeedId(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select target feed..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allFeeds
+                    .filter(feed => feed.id !== selectedFeedId)
+                    .map((feed) => (
+                      <SelectItem key={feed.id} value={feed.id.toString()}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{feed.label}</span>
+                          <span className="text-xs text-slate-500">{feed.feed_key} (ID: {feed.id})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCopyDialog(false);
+              setCopyToFeedId(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleCopyRules} disabled={!copyToFeedId}>
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Rules
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
