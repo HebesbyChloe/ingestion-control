@@ -21,7 +21,7 @@ export default function SchedulesPage() {
   const queryClient = useQueryClient();
 
   // Fetch schedules from API
-  const { data: schedules = [], isLoading, error } = useQuery({
+  const { data: schedules = [], isLoading, error, refetch } = useQuery({
     queryKey: ['schedules'],
     queryFn: () => schedulesApi.getAll(),
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -116,13 +116,28 @@ export default function SchedulesPage() {
           <h2 className="text-2xl font-semibold text-slate-900">Ingestion Schedules</h2>
           <p className="text-slate-500">Manage automated worker triggers and intervals</p>
         </div>
-        <Button 
-          onClick={() => setShowCreateForm(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Schedule
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={() => refetch()}
+            variant="outline"
+            className="gap-2"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Schedule
+          </Button>
+        </div>
       </div>
 
       {/* Loading State */}

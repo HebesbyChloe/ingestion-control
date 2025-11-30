@@ -86,8 +86,13 @@ export default function FeedsPage() {
             onClick={() => refetch()}
             variant="outline"
             className="gap-2"
+            disabled={isLoading}
           >
-            <RefreshCw className="w-4 h-4" />
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
             Refresh
           </Button>
           <Button 

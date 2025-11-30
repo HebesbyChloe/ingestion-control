@@ -116,6 +116,10 @@ export default function MonitoringPage() {
     executeMutation.mutate(schedule.id);
   };
 
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
   if (error) {
     return (
       <div className="max-w-5xl mx-auto py-12">
@@ -123,7 +127,7 @@ export default function MonitoringPage() {
           <CardContent className="p-8 text-center">
             <p className="text-lg font-semibold text-red-700 mb-2">Failed to load monitoring data</p>
             <p className="text-sm text-red-600 mb-4">{String(error)}</p>
-            <Button onClick={() => refetch()}>Retry</Button>
+            <Button onClick={handleRefresh}>Retry</Button>
           </CardContent>
         </Card>
       </div>
@@ -141,7 +145,7 @@ export default function MonitoringPage() {
             time. Use the filters below to focus on specific tenants or services.
           </p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => refetch()} disabled={isLoading}>
+        <Button variant="outline" className="gap-2" onClick={handleRefresh} disabled={isLoading}>
           <RefreshCw className={isLoading ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} />
           Refresh
         </Button>
