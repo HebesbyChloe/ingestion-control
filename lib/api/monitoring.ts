@@ -108,8 +108,8 @@ function transformMonitoringResponse(data: any): MonitoringSnapshot {
     };
     
     return {
-      pending: getCount('pending') || healthQueue?.pending ?? 0,
-      processing: getCount('processing') || healthQueue?.processing ?? 0,
+      pending: getCount('pending') || (healthQueue?.pending ?? 0),
+      processing: getCount('processing') || (healthQueue?.processing ?? 0),
       failed: getCount('failed') || 0,
       completed: getCount('completed') || 0,
     };
