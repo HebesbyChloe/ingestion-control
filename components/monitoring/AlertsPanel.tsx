@@ -59,6 +59,7 @@ export function AlertsPanel({ alerts = [] }: AlertsPanelProps) {
 }
 
 function formatAlertType(type: string) {
+  if (!type) return 'Unknown';
   return type
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());

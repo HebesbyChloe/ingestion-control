@@ -74,7 +74,11 @@ export default function MonitoringPage() {
   const serviceOptions = useMemo(() => {
     if (!snapshot) return [];
     const unique = Array.from(
-      new Set(snapshot.schedules.map((schedule) => schedule.target_service)),
+      new Set(
+        snapshot.schedules
+          .map((schedule) => schedule.target_service)
+          .filter((service): service is string => Boolean(service)),
+      ),
     );
     return unique.map((service) => ({
       value: service,
