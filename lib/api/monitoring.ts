@@ -96,15 +96,30 @@ function transformMonitoringResponse(data: any): MonitoringSnapshot {
     monitoring_interval_ms: 0,
   };
 
+  // Helper function to extract queue counts from stats array
+  const getQueueCounts = (healthQueue: any) => {
+    const stats = Array.isArray(healthQueue?.stats) ? healthQueue.stats : [];
+    
+    // Extract counts from stats array
+    const getCount = (status: string) => {
+      const stat = stats.find((s: any) => s.status === status);
+      return stat ? parseInt(String(stat.count), 10) || 0 : 0;
+    };
+    
+    return {
+      pending: getCount('pending') || healthQueue?.pending ?? 0,
+      processing: getCount('processing') || healthQueue?.processing ?? 0,
+      failed: getCount('failed') || 0,
+    };
+  };
+
   // Transform worker health
   const workerHealth = data.worker?.health ? {
     status: (data.worker.health.status || 'down') as 'healthy' | 'degraded' | 'down',
     last_check: data.worker.health.timestamp || new Date().toISOString(),
     message: data.worker.health.message,
     queue: {
-      pending: data.worker.queue?.pending ?? data.worker.health.queue?.pending ?? 0,
-      processing: data.worker.queue?.processing ?? data.worker.health.queue?.processing ?? 0,
-      failed: data.worker.queue?.failed ?? 0,
+      ...getQueueCounts(data.worker.health.queue),
       stuck: data.worker.queue?.stuckJobs?.length ?? 0,
     },
     stuck_jobs: (data.worker.queue?.stuckJobs || []).map((job: any) => ({
@@ -125,12 +140,10 @@ function transformMonitoringResponse(data: any): MonitoringSnapshot {
     stuck_jobs: [],
   };
 
-  // Transform queue
-  const queue = data.worker?.queue ? {
-    pending: data.worker.queue.pending ?? 0,
-    processing: data.worker.queue.processing ?? 0,
-    failed: data.worker.queue.failed ?? 0,
-    stuck: data.worker.queue.stuckJobs?.length ?? 0,
+  // Transform queue - use same logic as worker_health.queue
+  const queue = data.worker?.health?.queue ? {
+    ...getQueueCounts(data.worker.health.queue),
+    stuck: data.worker.queue?.stuckJobs?.length ?? 0,
   } : {
     pending: 0,
     processing: 0,
