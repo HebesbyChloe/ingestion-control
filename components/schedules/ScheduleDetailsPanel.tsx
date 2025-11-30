@@ -741,7 +741,7 @@ export function ScheduleDetailsPanel({ schedule, onClose, onUpdate, onDelete, on
                                 setPayloadJson(e.target.value);
                                 setPayloadError(null);
                               }}
-                              placeholder="{ \"key\": \"value\" }"
+                              placeholder='{ "key": "value" }'
                             />
                             {payloadError && (
                               <p className="text-xs text-red-600 mt-1">{payloadError}</p>
@@ -760,7 +760,7 @@ export function ScheduleDetailsPanel({ schedule, onClose, onUpdate, onDelete, on
                           setHeadersJson(e.target.value);
                           setHeadersError(null);
                         }}
-                        placeholder="{ \"X-Header\": \"value\" }"
+                        placeholder='{ "X-Header": "value" }'
                       />
                       {headersError && (
                         <p className="text-xs text-red-600 mt-1">{headersError}</p>
