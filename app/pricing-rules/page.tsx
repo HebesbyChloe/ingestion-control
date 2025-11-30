@@ -368,7 +368,7 @@ export default function RulesPage() {
         setPendingChanges((prev) => {
           const newMap = new Map(prev);
           newMap.set(existing.id, {
-            config: importedRule.config,
+            config: importedRule.config as PricingRuleConfig | OriginRuleConfig | ScoringRuleConfig,
             name: importedRule.name || existing.name,
           });
           return newMap;
