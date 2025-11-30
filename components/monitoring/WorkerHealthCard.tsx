@@ -48,8 +48,26 @@ export function WorkerHealthCard({ health }: WorkerHealthCardProps) {
           <div className="space-y-1 text-xs text-slate-500">
             <QueueBar label="Pending" value={health?.queue.pending ?? 0} color="bg-amber-500" />
             <QueueBar label="Processing" value={health?.queue.processing ?? 0} color="bg-indigo-500" />
+            <QueueBar label="Completed" value={health?.queue.completed ?? 0} color="bg-emerald-500" />
             <QueueBar label="Failed" value={health?.queue.failed ?? 0} color="bg-rose-500" />
           </div>
+          {health?.queue.completed != null && health?.queue.failed != null && 
+           (health.queue.completed + health.queue.failed) > 0 && (
+            <div className="pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500">Success Rate</span>
+                <span className={`font-semibold ${
+                  Math.round((health.queue.completed / (health.queue.completed + health.queue.failed)) * 100) >= 90 
+                    ? 'text-emerald-600' 
+                    : Math.round((health.queue.completed / (health.queue.completed + health.queue.failed)) * 100) >= 70
+                    ? 'text-amber-600'
+                    : 'text-red-600'
+                }`}>
+                  {Math.round((health.queue.completed / (health.queue.completed + health.queue.failed)) * 100)}%
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {health?.message && (

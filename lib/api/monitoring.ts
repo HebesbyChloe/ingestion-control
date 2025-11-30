@@ -10,6 +10,7 @@ export interface QueueStats {
   pending: number;
   processing: number;
   failed: number;
+  completed?: number;
   stuck?: number;
 }
 
@@ -110,16 +111,18 @@ function transformMonitoringResponse(data: any): MonitoringSnapshot {
       pending: getCount('pending') || healthQueue?.pending ?? 0,
       processing: getCount('processing') || healthQueue?.processing ?? 0,
       failed: getCount('failed') || 0,
+      completed: getCount('completed') || 0,
     };
   };
 
   // Transform worker health
+  const workerHealthQueueCounts = getQueueCounts(data.worker?.health?.queue);
   const workerHealth = data.worker?.health ? {
     status: (data.worker.health.status || 'down') as 'healthy' | 'degraded' | 'down',
     last_check: data.worker.health.timestamp || new Date().toISOString(),
     message: data.worker.health.message,
     queue: {
-      ...getQueueCounts(data.worker.health.queue),
+      ...workerHealthQueueCounts,
       stuck: data.worker.queue?.stuckJobs?.length ?? 0,
     },
     stuck_jobs: (data.worker.queue?.stuckJobs || []).map((job: any) => ({
@@ -136,6 +139,7 @@ function transformMonitoringResponse(data: any): MonitoringSnapshot {
       pending: 0,
       processing: 0,
       failed: 0,
+      completed: 0,
     },
     stuck_jobs: [],
   };
@@ -148,6 +152,7 @@ function transformMonitoringResponse(data: any): MonitoringSnapshot {
     pending: 0,
     processing: 0,
     failed: 0,
+    completed: 0,
   };
 
   // Transform schedules (camelCase to snake_case)
