@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import type { IngestionRule } from '@/lib/api/rules';
+import { JsonImportDialog } from './JsonImportDialog';
+import { parseCombinedConfig } from '@/lib/rules/jsonGenerator';
 
 interface JsonConfigCardProps {
   selectedFeed: string | null;
@@ -11,6 +14,7 @@ interface JsonConfigCardProps {
   showConfig: boolean;
   onToggleConfig: () => void;
   getCombinedConfig: () => any;
+  onImportRules?: (rules: IngestionRule[]) => void;
 }
 
 /**
@@ -32,15 +36,31 @@ export function JsonConfigCard({
   showConfig,
   onToggleConfig,
   getCombinedConfig,
+  onImportRules,
 }: JsonConfigCardProps) {
-  // Don't render if no enabled rules for this feed
+  const [showImportDialog, setShowImportDialog] = useState(false);
+
+  // Don't render if no enabled rules for this feed (unless import is available)
   const hasEnabledRules = allFeedRules.filter(
     r => r.feed_key === selectedFeed && r.enabled
   ).length > 0;
 
-  if (!hasEnabledRules) {
+  if (!hasEnabledRules && !onImportRules) {
     return null;
   }
+
+  const handleImport = (json: any) => {
+    if (!onImportRules || !selectedFeed) return;
+    
+    try {
+      const tenantId = 1; // Default tenant, should be passed as prop if needed
+      const importedRules = parseCombinedConfig(json, selectedFeed, tenantId);
+      onImportRules(importedRules);
+    } catch (error) {
+      console.error('Failed to import rules:', error);
+      alert(`Failed to import rules: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   return (
     <Card className="bg-white border-slate-200 shadow-sm">
@@ -49,27 +69,42 @@ export function JsonConfigCard({
           <div>
             <CardTitle className="text-slate-900">Feed Configuration (JSON)</CardTitle>
             <CardDescription className="text-slate-500">
-              Complete configuration for feed &quot;{selectedFeed}&quot; - All enabled rules (pricing, origin, scoring, filter)
+              {hasEnabledRules 
+                ? `Complete configuration for feed "${selectedFeed}" - All enabled rules (pricing, origin, scoring, filter)`
+                : `Import or view configuration for feed "${selectedFeed}"`}
             </CardDescription>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleConfig}
-            className="text-slate-600 hover:text-slate-900"
-          >
-            {showConfig ? (
-              <>
-                <ChevronUp className="w-4 h-4 mr-2" />
-                Hide Config
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-4 h-4 mr-2" />
-                View Config JSON
-              </>
+          <div className="flex items-center gap-2">
+            {onImportRules && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowImportDialog(true)}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import JSON
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleConfig}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              {showConfig ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Hide Config
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  View Config JSON
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       {showConfig && (
@@ -78,6 +113,14 @@ export function JsonConfigCard({
             <code>{JSON.stringify(getCombinedConfig(), null, 2)}</code>
           </pre>
         </CardContent>
+      )}
+      {onImportRules && selectedFeed && (
+        <JsonImportDialog
+          isOpen={showImportDialog}
+          onClose={() => setShowImportDialog(false)}
+          onImport={handleImport}
+          feedKey={selectedFeed}
+        />
       )}
     </Card>
   );

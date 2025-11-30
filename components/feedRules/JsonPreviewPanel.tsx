@@ -3,17 +3,21 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import type { FeedRulesConfig } from '@/lib/api/feedRules';
+import { JsonImportDialog } from '@/components/rules/JsonImportDialog';
 
 interface JsonPreviewPanelProps {
   rules: FeedRulesConfig;
   onClose: () => void;
+  onImport?: (json: FeedRulesConfig) => void;
+  feedKey?: string;
 }
 
-export default function JsonPreviewPanel({ rules, onClose }: JsonPreviewPanelProps) {
+export default function JsonPreviewPanel({ rules, onClose, onImport, feedKey }: JsonPreviewPanelProps) {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const jsonString = JSON.stringify(rules, null, 2);
 
@@ -21,6 +25,26 @@ export default function JsonPreviewPanel({ rules, onClose }: JsonPreviewPanelPro
     navigator.clipboard.writeText(jsonString);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleImport = (json: any) => {
+    if (!onImport) return;
+    
+    try {
+      // Validate and normalize the imported JSON
+      const importedRules: FeedRulesConfig = {
+        filters: Array.isArray(json.filters) ? json.filters : [],
+        fieldMappings: Array.isArray(json.fieldMappings) ? json.fieldMappings : [],
+        fieldTransformations: Array.isArray(json.fieldTransformations) ? json.fieldTransformations : [],
+        calculatedFields: Array.isArray(json.calculatedFields) ? json.calculatedFields : [],
+        shardRules: Array.isArray(json.shardRules) ? json.shardRules : [],
+      };
+      
+      onImport(importedRules);
+    } catch (error) {
+      console.error('Failed to import rules:', error);
+      alert(`Failed to import rules: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -33,6 +57,17 @@ export default function JsonPreviewPanel({ rules, onClose }: JsonPreviewPanelPro
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
+          {onImport && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowImportDialog(true)}
+              className="gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Import JSON
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -79,6 +114,14 @@ export default function JsonPreviewPanel({ rules, onClose }: JsonPreviewPanelPro
             <p><strong>Filters:</strong> {rules.filters?.length || 0} | <strong>Field Mappings:</strong> {rules.fieldMappings?.length || 0} | <strong>Transformations:</strong> {rules.fieldTransformations?.length || 0} | <strong>Calculated Fields:</strong> {rules.calculatedFields?.length || 0}</p>
           </div>
         </CardContent>
+      )}
+      {onImport && feedKey && (
+        <JsonImportDialog
+          isOpen={showImportDialog}
+          onClose={() => setShowImportDialog(false)}
+          onImport={handleImport}
+          feedKey={feedKey}
+        />
       )}
     </Card>
   );

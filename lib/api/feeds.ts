@@ -37,6 +37,7 @@ export interface Feed {
   rules?: Record<string, any>;
   markup_rules?: any;
   field_schema?: FieldSchema;
+  field_mapping?: any[];
   enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -63,6 +64,7 @@ export interface CreateFeedInput {
   rules?: Record<string, any>;
   markup_rules?: any;
   field_schema?: FieldSchema;
+  field_mapping?: any[];
   enabled?: boolean;
 }
 
@@ -131,6 +133,24 @@ export const feedsApi = {
       const error = await response.json();
       throw new Error(error.error || error.details || 'Failed to delete feed');
     }
+  },
+
+  // Fetch header schema from worker service
+  fetchHeaderSchema: async (feedKey: string, tenantId: number, save: boolean = false): Promise<FieldSchema> => {
+    const params = new URLSearchParams({
+      feedKey,
+      tenant_id: tenantId.toString(),
+    });
+    if (save) {
+      params.append('save', 'true');
+    }
+    
+    const response = await fetch(`/api/feeds/headers?${params.toString()}`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.details || 'Failed to fetch header schema');
+    }
+    return response.json();
   },
 };
 

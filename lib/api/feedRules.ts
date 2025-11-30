@@ -30,9 +30,12 @@ export interface Condition {
 
 export interface FieldMapping {
   source: string;
-  target: string;
+  target: string | 'ignore'; // Can be a field path like "module/table/field" or "ignore"
   type: 'direct';
   overwrite?: boolean; // default: false - adds new field instead of replacing
+  module?: string; // Module name for target field
+  table?: string; // Table name for target field
+  field?: string; // Field name for target field
 }
 
 export interface FieldTransformation {
@@ -479,6 +482,34 @@ export const feedRulesApi = {
       valid: errors.filter(e => e.type === 'error').length === 0,
       errors,
     };
+  },
+
+  /**
+   * Get field mappings from field_mapping column
+   */
+  getFieldMappings: async (feedId: number): Promise<FieldMapping[]> => {
+    try {
+      const feed = await feedsApi.getById(feedId);
+      return Array.isArray(feed.field_mapping) ? feed.field_mapping : [];
+    } catch (error) {
+      console.error('Error fetching field mappings:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update field mappings in field_mapping column
+   */
+  updateFieldMappings: async (feedId: number, mappings: FieldMapping[]): Promise<Feed> => {
+    try {
+      const updatedFeed = await feedsApi.update(feedId, {
+        field_mapping: mappings,
+      });
+      return updatedFeed;
+    } catch (error) {
+      console.error('Error updating field mappings:', error);
+      throw error;
+    }
   },
 };
 

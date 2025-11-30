@@ -212,3 +212,170 @@ export function getCombinedConfig(allFeedRules: IngestionRule[], selectedFeed: s
   return config;
 }
 
+/**
+ * Parses combined JSON configuration back into individual IngestionRule objects
+ * This is the reverse of getCombinedConfig()
+ * @param json - Combined JSON config object (from getCombinedConfig output)
+ * @param feedKey - The feed key to assign to imported rules
+ * @param tenantId - The tenant ID to assign to imported rules
+ * @returns Array of IngestionRule objects ready to be merged
+ */
+export function parseCombinedConfig(
+  json: any,
+  feedKey: string,
+  tenantId: number
+): IngestionRule[] {
+  const rules: IngestionRule[] = [];
+  let priority = 0;
+  const now = new Date().toISOString();
+
+  // Helper to create a rule
+  const createRule = (
+    ruleType: 'pricing' | 'origin' | 'scoring' | 'filter',
+    config: any,
+    name?: string
+  ): IngestionRule => {
+    return {
+      id: 0, // Will be assigned when merged
+      tenant_id: tenantId,
+      feed_key: feedKey,
+      rule_type: ruleType,
+      name: name || `Imported ${ruleType} rule`,
+      priority: priority++,
+      enabled: true,
+      config,
+      created_at: now,
+      updated_at: now,
+    };
+  };
+
+  // Parse markup_rules (pricing rules)
+  if (Array.isArray(json.markup_rules)) {
+    json.markup_rules.forEach((rule: any, index: number) => {
+      const config: any = {
+        source_field: rule.source_field || null,
+        target_field: rule.target_field || null,
+      };
+
+      // Extract pricing fields from condition
+      if (rule.condition) {
+        config.min_price = rule.condition.min_price ?? null;
+        config.max_price = rule.condition.max_price ?? null;
+        config.percent = rule.condition.percent ?? 0;
+        config.fixed_amount = rule.condition.fixed_amount ?? 0;
+      } else {
+        // Fallback: check if fields are at top level
+        config.min_price = rule.min_price ?? null;
+        config.max_price = rule.max_price ?? null;
+        config.percent = rule.percent ?? 0;
+        config.fixed_amount = rule.fixed_amount ?? 0;
+      }
+
+      rules.push(
+        createRule('pricing', config, `Imported Pricing Rule ${index + 1}`)
+      );
+    });
+  }
+
+  // Parse field_mapping (origin rules)
+  if (Array.isArray(json.field_mapping)) {
+    json.field_mapping.forEach((rule: any, index: number) => {
+      const config: any = {
+        source_field: rule.source_field || null,
+        source_value: rule.source_value || null,
+        target_field: rule.target_field || null,
+        target_value: rule.target_value || null,
+        include: true, // Default for origin rules
+      };
+
+      // Extract any additional fields from condition
+      if (rule.condition && typeof rule.condition === 'object') {
+        Object.assign(config, rule.condition);
+      }
+
+      rules.push(
+        createRule('origin', config, `Imported Origin Rule ${index + 1}`)
+      );
+    });
+  }
+
+  // Parse scoring_rules
+  if (Array.isArray(json.scoring_rules)) {
+    json.scoring_rules.forEach((rule: any, index: number) => {
+      const config: any = {
+        field_name: rule.source_field || null,
+        field_value: rule.source_value || null,
+        target_field: rule.target_field || null,
+        score_multiplier: rule.target_value ?? 1,
+      };
+
+      // Extract additional conditions
+      if (rule.condition && typeof rule.condition === 'object') {
+        config.conditions = rule.condition;
+      }
+
+      rules.push(
+        createRule('scoring', config, `Imported Scoring Rule ${index + 1}`)
+      );
+    });
+  }
+
+  // Parse filter_rules
+  if (Array.isArray(json.filter_rules)) {
+    json.filter_rules.forEach((rule: any, index: number) => {
+      const config: any = {
+        field_name: rule.source_field || null,
+        field_value: rule.source_value || null,
+        operator: 'equals', // Default
+      };
+
+      // Extract operator from condition
+      if (rule.condition) {
+        config.operator = rule.condition.operator || 'equals';
+        // Copy other condition fields
+        Object.keys(rule.condition).forEach((key) => {
+          if (key !== 'operator') {
+            config[key] = rule.condition[key];
+          }
+        });
+      }
+
+      rules.push(
+        createRule('filter', config, `Imported Filter Rule ${index + 1}`)
+      );
+    });
+  }
+
+  // Parse value_transform_rules (if structured as array)
+  if (json.value_transform_rules) {
+    if (Array.isArray(json.value_transform_rules)) {
+      json.value_transform_rules.forEach((rule: any, index: number) => {
+        const config: any = {
+          source_field: rule.source_field || null,
+          target_field: rule.target_field || null,
+          ...rule,
+        };
+        // Could be origin or custom rule type
+        rules.push(
+          createRule('origin', config, `Imported Transform Rule ${index + 1}`)
+        );
+      });
+    } else if (typeof json.value_transform_rules === 'object') {
+      // If it's an object, convert to rules
+      Object.keys(json.value_transform_rules).forEach((key, index) => {
+        const transform = json.value_transform_rules[key];
+        const config: any = {
+          source_field: key,
+          target_field: transform.target_field || key,
+          ...transform,
+        };
+        rules.push(
+          createRule('origin', config, `Imported Transform Rule ${index + 1}`)
+        );
+      });
+    }
+  }
+
+  return rules;
+}
+

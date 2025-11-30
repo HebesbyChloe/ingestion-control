@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { X, Save, Trash2, CheckCircle2, XCircle, Eye, EyeOff, Edit } from 'lucide-react';
+import { X, Save, Trash2, CheckCircle2, XCircle, Eye, EyeOff, Edit, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
-import { Feed, CreateFeedInput, FieldSchema } from '@/lib/api/feeds';
+import { Feed, CreateFeedInput, FieldSchema, feedsApi } from '@/lib/api/feeds';
 import FieldSchemaTab from './FieldSchemaTab';
 
 interface FeedDetailsPanelProps {
@@ -28,6 +28,8 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
     feed.request_body ? JSON.stringify(feed.request_body, null, 2) : ''
   );
   const [jsonErrors, setJsonErrors] = useState({ headers: '', body: '' });
+  const [isFetchingSchema, setIsFetchingSchema] = useState(false);
+  const [showFieldSchemaView, setShowFieldSchemaView] = useState(false);
   
   const [formData, setFormData] = useState<Partial<CreateFeedInput>>({
     feed_key: feed.feed_key,
@@ -46,6 +48,7 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
     shard_directory: feed.shard_directory || '',
     manifest_directory: feed.manifest_directory || '',
     field_schema: feed.field_schema,
+    field_mapping: feed.field_mapping,
     enabled: feed.enabled,
   });
 
@@ -111,6 +114,28 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
         onDelete(feed.id);
         onClose();
       }
+    }
+  };
+
+  const handleFetchHeaderSchema = async (save: boolean = false) => {
+    setIsFetchingSchema(true);
+    try {
+      const schema = await feedsApi.fetchHeaderSchema(feed.feed_key, feed.tenant_id, save);
+      if (save) {
+        // Update form data with the fetched schema
+        setFormData({ ...formData, field_schema: schema });
+        // Also update the feed immediately
+        onUpdate(feed.id, { field_schema: schema });
+      } else {
+        // Just show the schema in the view
+        setFormData({ ...formData, field_schema: schema });
+      }
+      setShowFieldSchemaView(true);
+    } catch (error) {
+      console.error('Error fetching header schema:', error);
+      alert(`Failed to fetch header schema: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsFetchingSchema(false);
     }
   };
 
@@ -449,6 +474,63 @@ export function FeedDetailsPanel({ feed, onClose, onUpdate, onDelete }: FeedDeta
                 />
               </div>
             </CardContent>
+          </Card>
+
+          {/* Header Schema Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-slate-600">Field Schema</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleFetchHeaderSchema(false)}
+                    disabled={isFetchingSchema}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    {isFetchingSchema ? 'Fetching...' : 'Fetch Schema'}
+                  </Button>
+                  <Button
+                    onClick={() => handleFetchHeaderSchema(true)}
+                    disabled={isFetchingSchema}
+                    variant="default"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    {isFetchingSchema ? 'Saving...' : 'Fetch & Save'}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            {formData.field_schema && (
+              <CardContent>
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => setShowFieldSchemaView(!showFieldSchemaView)}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between"
+                  >
+                    <span className="text-sm font-medium">View Field Schema</span>
+                    {showFieldSchemaView ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </Button>
+                  {showFieldSchemaView && (
+                    <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                      <pre className="text-xs font-mono overflow-auto max-h-96">
+                        {JSON.stringify(formData.field_schema, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            )}
           </Card>
 
           {/* Timestamps */}

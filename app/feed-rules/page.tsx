@@ -31,7 +31,7 @@ type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculat
  */
 export default function FeedRulesPage() {
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
-  const [selectedRuleType, setSelectedRuleType] = useState<RuleType>('filters');
+  const [selectedRuleType, setSelectedRuleType] = useState<RuleType>('fieldMappings');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [copyToFeedId, setCopyToFeedId] = useState<number | null>(null);
@@ -109,6 +109,55 @@ export default function FeedRulesPage() {
     }
   };
 
+  const handleImportRules = (importedRules: FeedRulesConfig) => {
+    if (!selectedFeedId) return;
+
+    // Show confirmation
+    const totalRules = 
+      (importedRules.filters?.length || 0) +
+      (importedRules.fieldMappings?.length || 0) +
+      (importedRules.fieldTransformations?.length || 0) +
+      (importedRules.calculatedFields?.length || 0) +
+      (importedRules.shardRules?.length || 0);
+
+    if (totalRules === 0) {
+      alert('No rules found in imported JSON');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Import ${totalRules} rule(s)? Existing rules will be merged with imported rules.`
+    );
+    if (!confirmed) return;
+
+    // Merge strategy: combine arrays, keeping existing and adding new
+    const mergedRules: FeedRulesConfig = {
+      filters: [
+        ...(localRules.filters || []),
+        ...(importedRules.filters || []),
+      ],
+      fieldMappings: [
+        ...(localRules.fieldMappings || []),
+        ...(importedRules.fieldMappings || []),
+      ],
+      fieldTransformations: [
+        ...(localRules.fieldTransformations || []),
+        ...(importedRules.fieldTransformations || []),
+      ],
+      calculatedFields: [
+        ...(localRules.calculatedFields || []),
+        ...(importedRules.calculatedFields || []),
+      ],
+      shardRules: [
+        ...(localRules.shardRules || []),
+        ...(importedRules.shardRules || []),
+      ],
+    };
+
+    setLocalRules(mergedRules);
+    alert(`Import complete: ${totalRules} rule(s) added to existing rules.`);
+  };
+
   // Get count for each rule type
   const getCounts = () => {
     return {
@@ -121,6 +170,30 @@ export default function FeedRulesPage() {
   };
 
   const counts = getCounts();
+
+  // Validation: Check if all fields from field_schema are mapped
+  const validateFieldMappings = () => {
+    if (!selectedFeed?.field_schema?.fields || !selectedFeed.field_schema.fields.length) {
+      return { isValid: true, unmappedFields: [] };
+    }
+
+    const fieldMappings = selectedFeed.field_mapping || [];
+    const mappedSourceFields = new Set(
+      fieldMappings.map((m: any) => m?.source).filter(Boolean)
+    );
+
+    const unmappedFields = selectedFeed.field_schema.fields.filter(
+      (field) => !mappedSourceFields.has(field.name)
+    );
+
+    return {
+      isValid: unmappedFields.length === 0,
+      unmappedFields,
+    };
+  };
+
+  const fieldMappingValidation = validateFieldMappings();
+  const canAccessOtherRules = fieldMappingValidation.isValid;
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -141,11 +214,44 @@ export default function FeedRulesPage() {
       {/* Show content only if feed is selected */}
       {selectedFeedId && (
         <>
+          {/* Validation Warning */}
+          {!fieldMappingValidation.isValid && (
+            <Card className="bg-amber-50 border-amber-200">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="font-medium text-amber-900 mb-1">
+                      Field Mappings Required
+                    </div>
+                    <div className="text-sm text-amber-700">
+                      {fieldMappingValidation.unmappedFields.length} field(s) from the field schema are not mapped. 
+                      Please complete field mappings before configuring other rules.
+                    </div>
+                    {fieldMappingValidation.unmappedFields.length > 0 && (
+                      <div className="mt-2 text-xs text-amber-600">
+                        Unmapped fields: {fieldMappingValidation.unmappedFields.map(f => f.name).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Rule Type Tabs */}
           <FeedRuleTypeTabs
             selectedRuleType={selectedRuleType}
-            onSelectRuleType={setSelectedRuleType}
+            onSelectRuleType={(type) => {
+              // Prevent switching to other rules if field mappings are incomplete
+              if (!canAccessOtherRules && type !== 'fieldMappings') {
+                alert('Please complete all field mappings before configuring other rules.');
+                return;
+              }
+              setSelectedRuleType(type);
+            }}
             counts={counts}
+            disabledTabs={!canAccessOtherRules ? ['filters', 'fieldTransformations', 'calculatedFields', 'shardRules'] : []}
           />
 
           {/* Action Buttons */}
@@ -218,9 +324,16 @@ export default function FeedRulesPage() {
                   )}
                   {selectedRuleType === 'fieldMappings' && (
                     <FieldMappingsTable
-                      rules={localRules}
-                      setRules={setLocalRules}
+                      feedId={selectedFeedId}
                       fieldSchema={selectedFeed?.field_schema}
+                      onMappingsChange={(mappings) => {
+                        // Update feed's field_mapping when mappings change
+                        // This will trigger a refetch of the feed for validation
+                        if (selectedFeedId) {
+                          queryClient.invalidateQueries({ queryKey: ['feed', selectedFeedId] });
+                          queryClient.invalidateQueries({ queryKey: ['feeds'] });
+                        }
+                      }}
                     />
                   )}
                   {selectedRuleType === 'fieldTransformations' && (
@@ -253,6 +366,8 @@ export default function FeedRulesPage() {
             <JsonPreviewPanel
               rules={localRules}
               onClose={() => setShowJsonPreview(false)}
+              onImport={handleImportRules}
+              feedKey={selectedFeed?.feed_key || selectedFeed?.label || 'unknown'}
             />
           )}
         </>

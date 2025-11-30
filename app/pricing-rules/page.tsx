@@ -26,7 +26,7 @@ import {
 import { getRuleTypeConfig, hasTemplateAssigned, saveRuleTypeTemplate } from '@/components/rules/ruleTypeRegistry';
 import TemplateSelector from '@/components/rules/TemplateSelector';
 import RuleDetailsPanel from '@/components/rules/RuleDetailsPanel';
-import { getCombinedConfig } from '@/lib/rules/jsonGenerator';
+import { getCombinedConfig, parseCombinedConfig } from '@/lib/rules/jsonGenerator';
 import { useRulesData } from '@/hooks/useRulesData';
 import { useRulesState, type PendingCreateRule } from '@/hooks/useRulesState';
 import { useRulesMutations } from '@/hooks/useRulesMutations';
@@ -310,6 +310,95 @@ export default function RulesPage() {
     }
   };
 
+
+  const handleImportRules = (importedRules: IngestionRule[]) => {
+    if (!selectedFeed || importedRules.length === 0) return;
+
+    // Show confirmation
+    const confirmed = window.confirm(
+      `Import ${importedRules.length} rule(s)? Existing rules with matching configuration will be updated, new ones will be added.`
+    );
+    if (!confirmed) return;
+
+    // Merge strategy: match by rule_type + config signature
+    const matchRule = (existing: IngestionRule, imported: IngestionRule): boolean => {
+      if (existing.rule_type !== imported.rule_type) return false;
+      
+      // Create a signature from key config fields
+      const getSignature = (config: any, ruleType: string): string => {
+        switch (ruleType) {
+          case 'pricing':
+            return `${config.min_price ?? 'null'}-${config.max_price ?? 'null'}-${config.source_field ?? 'null'}-${config.target_field ?? 'null'}`;
+          case 'origin':
+            return `${config.source_field ?? 'null'}-${config.target_field ?? 'null'}`;
+          case 'scoring':
+            return `${config.field_name ?? 'null'}-${config.field_value ?? 'null'}`;
+          case 'filter':
+            return `${config.field_name ?? 'null'}-${config.field_value ?? 'null'}-${config.operator ?? 'null'}`;
+          default:
+            return JSON.stringify(config);
+        }
+      };
+
+      return getSignature(existing.config, existing.rule_type) === 
+             getSignature(imported.config, imported.rule_type);
+    };
+
+    const updatedLocalRules = [...localRules];
+    const newPendingCreates: PendingCreateRule[] = [];
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    importedRules.forEach((importedRule) => {
+      // Find matching existing rule
+      const existingIndex = updatedLocalRules.findIndex((existing) =>
+        matchRule(existing, importedRule)
+      );
+
+      if (existingIndex >= 0) {
+        // Update existing rule
+        const existing = updatedLocalRules[existingIndex];
+        updatedLocalRules[existingIndex] = {
+          ...existing,
+          config: importedRule.config,
+          name: importedRule.name || existing.name,
+        };
+        
+        // Mark as pending change
+        setPendingChanges((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(existing.id, {
+            config: importedRule.config,
+            name: importedRule.name || existing.name,
+          });
+          return newMap;
+        });
+        updatedCount++;
+      } else {
+        // Add as new rule
+        const tempId = tempIdCounter.current--;
+        const newRule: PendingCreateRule = {
+          ...importedRule,
+          tempId,
+          priority: localRules.length + newPendingCreates.length,
+        };
+        newPendingCreates.push(newRule);
+        
+        // Add to local rules for immediate display
+        updatedLocalRules.push({
+          ...importedRule,
+          id: tempId,
+          priority: localRules.length + newPendingCreates.length - 1,
+        });
+        addedCount++;
+      }
+    });
+
+    setLocalRules(updatedLocalRules);
+    setPendingCreates((prev) => [...prev, ...newPendingCreates]);
+    
+    alert(`Import complete: ${updatedCount} rule(s) updated, ${addedCount} rule(s) added.`);
+  };
 
   const handleAddRule = () => {
     // Get default config from registry
@@ -721,6 +810,7 @@ export default function RulesPage() {
         showConfig={showConfig}
         onToggleConfig={() => setShowConfig(!showConfig)}
         getCombinedConfig={getCombinedConfigForDisplay}
+        onImportRules={handleImportRules}
       />
 
       {/* Template Selector Modal */}

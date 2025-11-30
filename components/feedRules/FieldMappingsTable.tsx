@@ -1,29 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
-import type { FeedRulesConfig, FieldMapping } from '@/lib/api/feedRules';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Trash2, Edit2, Check, X, Loader2 } from 'lucide-react';
+import type { FieldMapping } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
+import { feedRulesApi } from '@/lib/api/feedRules';
+import { schemaApi, type Module, type ModuleColumns } from '@/lib/api/schema';
 
 interface FieldMappingsTableProps {
-  rules: FeedRulesConfig;
-  setRules: (rules: FeedRulesConfig) => void;
+  feedId: number | null;
   fieldSchema?: FieldSchema;
+  onMappingsChange?: (mappings: FieldMapping[]) => void;
 }
 
-export default function FieldMappingsTable({ rules, setRules, fieldSchema }: FieldMappingsTableProps) {
+export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChange }: FieldMappingsTableProps) {
+  const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editData, setEditData] = useState<Partial<FieldMapping>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Module selection state
+  const [modules, setModules] = useState<Module[]>([]);
+  const [selectedModule, setSelectedModule] = useState<string>('');
+  const [moduleColumns, setModuleColumns] = useState<ModuleColumns | null>(null);
+  const [selectedTable, setSelectedTable] = useState<string>('');
+  const [selectedField, setSelectedField] = useState<string>('');
+  const [isLoadingModules, setIsLoadingModules] = useState(false);
+  const [isLoadingColumns, setIsLoadingColumns] = useState(false);
 
-  const mappings = rules.fieldMappings || [];
+  // Load field mappings from feed
+  useEffect(() => {
+    if (feedId) {
+      setIsLoading(true);
+      feedRulesApi.getFieldMappings(feedId)
+        .then(setMappings)
+        .catch((error) => {
+          console.error('Error loading field mappings:', error);
+          setMappings([]);
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setMappings([]);
+    }
+  }, [feedId]);
+
+  // Load modules on mount
+  useEffect(() => {
+    setIsLoadingModules(true);
+    schemaApi.getModules()
+      .then(setModules)
+      .catch((error) => {
+        console.error('Error loading modules:', error);
+        setModules([]);
+      })
+      .finally(() => setIsLoadingModules(false));
+  }, []);
+
+  // Load columns when module is selected
+  useEffect(() => {
+    if (selectedModule && editingIndex !== null) {
+      setIsLoadingColumns(true);
+      schemaApi.getModuleColumns(selectedModule)
+        .then((data) => {
+          setModuleColumns(data);
+          setSelectedTable('');
+          setSelectedField('');
+        })
+        .catch((error) => {
+          console.error('Error loading module columns:', error);
+          setModuleColumns(null);
+        })
+        .finally(() => setIsLoadingColumns(false));
+    } else {
+      setModuleColumns(null);
+      setSelectedTable('');
+      setSelectedField('');
+    }
+  }, [selectedModule, editingIndex]);
+
+  // Notify parent of changes
+  useEffect(() => {
+    if (onMappingsChange) {
+      onMappingsChange(mappings);
+    }
+  }, [mappings, onMappingsChange]);
 
   // Build list of all available field names and aliases for autocomplete
   const availableFields: string[] = [];
-  const fieldNamesLowerCase = new Set<string>(); // Track lowercase versions to prevent duplicates
+  const fieldNamesLowerCase = new Set<string>();
   
   if (fieldSchema?.fields) {
     fieldSchema.fields.forEach(field => {
@@ -42,9 +111,16 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
       });
     });
     
-    // Sort fields alphabetically (case-insensitive)
     availableFields.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
   }
+
+  // Get available fields for selected table
+  const getAvailableFields = (): string[] => {
+    if (!moduleColumns || !selectedTable) return [];
+    const tableData = moduleColumns.tables[selectedTable];
+    if (!tableData || !tableData.columns) return [];
+    return tableData.columns.map(col => col.field);
+  };
 
   const handleAdd = () => {
     const newMapping: FieldMapping = {
@@ -54,72 +130,184 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
       overwrite: false,
     };
 
-    setRules({
-      ...rules,
-      fieldMappings: [...mappings, newMapping],
-    });
-
-    // Start editing the new mapping
+    setMappings([...mappings, newMapping]);
     setEditingIndex(mappings.length);
     setEditData(newMapping);
+    setSelectedModule('');
+    setSelectedTable('');
+    setSelectedField('');
   };
 
   const handleEdit = (index: number) => {
+    const mapping = mappings[index];
     setEditingIndex(index);
-    setEditData({ ...mappings[index] });
+    setEditData({ ...mapping });
+    
+    // Parse target if it's a path
+    if (mapping.target && mapping.target !== 'ignore' && mapping.target.includes('/')) {
+      const parts = mapping.target.split('/');
+      if (parts.length === 3) {
+        setSelectedModule(parts[0]);
+        setSelectedTable(parts[1]);
+        setSelectedField(parts[2]);
+      }
+    } else if (mapping.module && mapping.table && mapping.field) {
+      setSelectedModule(mapping.module);
+      setSelectedTable(mapping.table);
+      setSelectedField(mapping.field);
+    }
   };
 
-  const handleSave = (index: number) => {
+  const handleSave = async (index: number) => {
     // Validate required fields
-    if (!editData.source || !editData.target) {
-      alert('Source and target fields are required');
+    if (!editData.source) {
+      alert('Source field is required');
       return;
     }
 
-    const updatedMappings = [...mappings];
-    updatedMappings[index] = {
+    if (!editData.target || editData.target === '') {
+      alert('Target field is required (or select "ignore")');
+      return;
+    }
+
+    let targetValue: string;
+    let moduleValue: string | undefined;
+    let tableValue: string | undefined;
+    let fieldValue: string | undefined;
+
+    if (editData.target === 'ignore') {
+      targetValue = 'ignore';
+    } else if (selectedModule && selectedTable && selectedField) {
+      targetValue = `${selectedModule}/${selectedTable}/${selectedField}`;
+      moduleValue = selectedModule;
+      tableValue = selectedTable;
+      fieldValue = selectedField;
+    } else {
+      // Fallback to direct target value
+      targetValue = editData.target;
+    }
+
+    const updatedMapping: FieldMapping = {
       source: editData.source,
-      target: editData.target,
+      target: targetValue,
       type: 'direct',
       overwrite: editData.overwrite || false,
+      module: moduleValue,
+      table: tableValue,
+      field: fieldValue,
     };
 
-    setRules({
-      ...rules,
-      fieldMappings: updatedMappings,
-    });
+    const updatedMappings = [...mappings];
+    updatedMappings[index] = updatedMapping;
+    setMappings(updatedMappings);
+
+    // Save to database
+    if (feedId) {
+      try {
+        await feedRulesApi.updateFieldMappings(feedId, updatedMappings);
+      } catch (error) {
+        console.error('Error saving field mappings:', error);
+        alert('Failed to save field mappings. Please try again.');
+        return;
+      }
+    }
 
     setEditingIndex(null);
     setEditData({});
+    setSelectedModule('');
+    setSelectedTable('');
+    setSelectedField('');
   };
 
   const handleCancel = () => {
     // If editing a new mapping that wasn't saved, remove it
-    if (editingIndex === mappings.length - 1 && !mappings[editingIndex].source) {
-      const updatedMappings = mappings.slice(0, -1);
-      setRules({
-        ...rules,
-        fieldMappings: updatedMappings,
-      });
+    if (editingIndex !== null && editingIndex === mappings.length - 1 && !mappings[editingIndex].source) {
+      setMappings(mappings.slice(0, -1));
     }
 
     setEditingIndex(null);
     setEditData({});
+    setSelectedModule('');
+    setSelectedTable('');
+    setSelectedField('');
   };
 
-  const handleDelete = (index: number) => {
+  const handleDelete = async (index: number) => {
     if (confirm('Are you sure you want to delete this field mapping?')) {
       const updatedMappings = mappings.filter((_, i) => i !== index);
-      setRules({
-        ...rules,
-        fieldMappings: updatedMappings,
-      });
+      setMappings(updatedMappings);
+
+      // Save to database
+      if (feedId) {
+        try {
+          await feedRulesApi.updateFieldMappings(feedId, updatedMappings);
+        } catch (error) {
+          console.error('Error deleting field mapping:', error);
+          alert('Failed to delete field mapping. Please try again.');
+          // Revert on error
+          setMappings(mappings);
+        }
+      }
     }
   };
 
   const handleUpdate = (field: keyof FieldMapping, value: any) => {
     setEditData({ ...editData, [field]: value });
+    
+    // If target is set to "ignore", clear module/table/field selections
+    if (field === 'target' && value === 'ignore') {
+      setSelectedModule('');
+      setSelectedTable('');
+      setSelectedField('');
+    }
   };
+
+  const handleTargetChange = (value: string) => {
+    if (value === 'ignore') {
+      handleUpdate('target', 'ignore');
+      setSelectedModule('');
+      setSelectedTable('');
+      setSelectedField('');
+    } else {
+      // This will be handled by module/table/field selection
+      setEditData({ ...editData, target: value });
+    }
+  };
+
+  const handleModuleChange = (module: string) => {
+    setSelectedModule(module);
+    setSelectedTable('');
+    setSelectedField('');
+    // Update target when module changes
+    if (module && selectedTable && selectedField) {
+      handleUpdate('target', `${module}/${selectedTable}/${selectedField}`);
+    }
+  };
+
+  const handleTableChange = (table: string) => {
+    setSelectedTable(table);
+    setSelectedField('');
+    // Update target when table changes
+    if (selectedModule && table && selectedField) {
+      handleUpdate('target', `${selectedModule}/${table}/${selectedField}`);
+    }
+  };
+
+  const handleFieldChange = (field: string) => {
+    setSelectedField(field);
+    // Update target when field changes
+    if (selectedModule && selectedTable && field) {
+      handleUpdate('target', `${selectedModule}/${selectedTable}/${field}`);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8 text-slate-500">
+        Loading field mappings...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -145,7 +333,7 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-16">#</TableHead>
                 <TableHead>Source Field</TableHead>
-                <TableHead>Target Field</TableHead>
+                <TableHead>Target (Module/Table/Field or Ignore)</TableHead>
                 <TableHead className="w-32">Overwrite</TableHead>
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
@@ -153,6 +341,10 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
             <TableBody>
               {mappings.map((mapping, index) => {
                 const isEditing = editingIndex === index;
+                const targetDisplay = mapping.target === 'ignore' 
+                  ? 'ignore' 
+                  : mapping.target || 'Not set';
+                
                 return (
                   <TableRow key={index} className={isEditing ? 'bg-blue-50' : ''}>
                     <TableCell className="text-center">{index + 1}</TableCell>
@@ -180,24 +372,79 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
                     </TableCell>
                     <TableCell>
                       {isEditing ? (
-                        <>
-                          <Input
-                            value={editData.target || ''}
-                            onChange={(e) => handleUpdate('target', e.target.value)}
-                            placeholder="target_field_name"
-                            className="h-8"
-                            list="target-fields-list"
-                          />
-                          {availableFields.length > 0 && (
-                            <datalist id="target-fields-list">
-                              {availableFields.map((field, idx) => (
-                                <option key={idx} value={field} />
-                              ))}
-                            </datalist>
+                        <div className="space-y-2">
+                          <Select
+                            value={editData.target === 'ignore' ? 'ignore' : 'map'}
+                            onValueChange={handleTargetChange}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Select action" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ignore">Ignore</SelectItem>
+                              <SelectItem value="map">Map to Field</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          {editData.target !== 'ignore' && (
+                            <div className="grid grid-cols-3 gap-2">
+                              <Select
+                                value={selectedModule}
+                                onValueChange={handleModuleChange}
+                                disabled={isLoadingModules}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder={isLoadingModules ? "Loading..." : "Module"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {modules.map((module) => (
+                                    <SelectItem key={module.name} value={module.name}>
+                                      {module.label || module.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              
+                              <Select
+                                value={selectedTable}
+                                onValueChange={handleTableChange}
+                                disabled={!selectedModule || isLoadingColumns}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder={isLoadingColumns ? "Loading..." : "Table"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {moduleColumns && selectedModule && Object.keys(moduleColumns.tables || {}).map((table) => (
+                                    <SelectItem key={table} value={table}>
+                                      {table}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              
+                              <Select
+                                value={selectedField}
+                                onValueChange={handleFieldChange}
+                                disabled={!selectedTable}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Field" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getAvailableFields().map((field) => (
+                                    <SelectItem key={field} value={field}>
+                                      {field}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           )}
-                        </>
+                        </div>
                       ) : (
-                        <span className="font-medium font-mono text-sm">{mapping.target}</span>
+                        <span className="font-medium font-mono text-sm">
+                          {targetDisplay}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -275,12 +522,13 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-slate-700">
         <p className="font-medium mb-1">💡 Field Mapping Behavior:</p>
         <ul className="list-disc list-inside space-y-1 text-xs">
+          <li><strong>Ignore:</strong> Field will be skipped during mapping</li>
+          <li><strong>Map to Field:</strong> Select module, table, and field to map source to target</li>
           <li><strong>Overwrite = No (default):</strong> Adds new target field, keeps original source field</li>
           <li><strong>Overwrite = Yes:</strong> Replaces existing target field value if it exists</li>
-          <li>Example: source="Item ID", target="id" → Row will have both "Item ID" and "id" fields</li>
           {availableFields.length > 0 && (
             <li className="text-indigo-700">
-              <strong>🔍 Autocomplete enabled:</strong> Type in source/target fields to see suggestions from feed schema
+              <strong>🔍 Autocomplete enabled:</strong> Type in source field to see suggestions from feed schema
             </li>
           )}
         </ul>
@@ -288,4 +536,3 @@ export default function FieldMappingsTable({ rules, setRules, fieldSchema }: Fie
     </div>
   );
 }
-

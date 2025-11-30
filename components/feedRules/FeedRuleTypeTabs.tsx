@@ -16,6 +16,7 @@ interface FeedRuleTypeTabsProps {
     calculatedFields: number;
     shardRules: number;
   };
+  disabledTabs?: RuleType[];
 }
 
 const RULE_TYPES: Array<{
@@ -25,16 +26,16 @@ const RULE_TYPES: Array<{
   description: string;
 }> = [
   {
-    id: 'filters',
-    label: 'Filters',
-    icon: Filter,
-    description: 'Include/exclude rows',
-  },
-  {
     id: 'fieldMappings',
     label: 'Field Mappings',
     icon: ArrowRightLeft,
     description: 'Map source to target',
+  },
+  {
+    id: 'filters',
+    label: 'Filters',
+    icon: Filter,
+    description: 'Include/exclude rows',
   },
   {
     id: 'fieldTransformations',
@@ -60,6 +61,7 @@ export default function FeedRuleTypeTabs({
   selectedRuleType,
   onSelectRuleType,
   counts,
+  disabledTabs = [],
 }: FeedRuleTypeTabsProps) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -67,17 +69,21 @@ export default function FeedRuleTypeTabs({
         const Icon = type.icon;
         const isActive = selectedRuleType === type.id;
         const count = counts[type.id];
+        const isDisabled = disabledTabs.includes(type.id);
 
         return (
           <button
             key={type.id}
-            onClick={() => onSelectRuleType(type.id)}
+            onClick={() => !isDisabled && onSelectRuleType(type.id)}
+            disabled={isDisabled}
             className={cn(
               'flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all',
-              'hover:border-indigo-300 hover:bg-indigo-50',
-              isActive
+              isDisabled
+                ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50'
+                : 'hover:border-indigo-300 hover:bg-indigo-50',
+              isActive && !isDisabled
                 ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                : 'border-slate-200 bg-white'
+                : !isDisabled && 'border-slate-200 bg-white'
             )}
           >
             <Icon

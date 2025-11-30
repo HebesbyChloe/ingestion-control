@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Save, Eye, EyeOff, X } from 'lucide-react';
+import { Plus, Trash2, Save, Eye, EyeOff, X, Upload } from 'lucide-react';
 import { markupRulesApi, type FeedWithMarkup, type MarkupRule, type MarkupRulesConfig, DEFAULT_PRICE_FIELDS } from '@/lib/api/markupRules';
+import { JsonImportDialog } from '@/components/rules/JsonImportDialog';
 
 interface MarkupRulesModalProps {
   feed: FeedWithMarkup;
@@ -22,6 +23,7 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
   const [priceFields, setPriceFields] = useState<string[]>(DEFAULT_PRICE_FIELDS);
   const [newFieldInput, setNewFieldInput] = useState('');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
@@ -134,6 +136,34 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
   const getJsonPreview = (): string => {
     const config = markupRulesApi.denormalizeMarkupRules({ rules, priceFields });
     return JSON.stringify(config, null, 2);
+  };
+
+  const handleImportJson = (json: any) => {
+    try {
+      // Normalize the imported JSON
+      const normalized = markupRulesApi.normalizeMarkupRules(json);
+      
+      if (!normalized || !normalized.rules || normalized.rules.length === 0) {
+        alert('No valid markup rules found in JSON');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Import ${normalized.rules.length} markup rule(s)? This will replace existing rules.`
+      );
+      
+      if (!confirmed) return;
+
+      setRules(normalized.rules);
+      if (normalized.priceFields && normalized.priceFields.length > 0) {
+        setPriceFields(normalized.priceFields);
+      }
+      setShowImportDialog(false);
+      alert(`Successfully imported ${normalized.rules.length} markup rule(s)`);
+    } catch (error) {
+      console.error('Failed to import markup rules:', error);
+      alert(`Failed to import markup rules: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   return (
@@ -302,15 +332,26 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
 
           {/* JSON Preview */}
           <div>
-            <Button
-              onClick={() => setShowJsonPreview(!showJsonPreview)}
-              variant="outline"
-              size="sm"
-              className="mb-3 gap-2"
-            >
-              {showJsonPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              {showJsonPreview ? 'Hide' : 'Show'} JSON Preview
-            </Button>
+            <div className="flex items-center gap-2 mb-3">
+              <Button
+                onClick={() => setShowJsonPreview(!showJsonPreview)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                {showJsonPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showJsonPreview ? 'Hide' : 'Show'} JSON Preview
+              </Button>
+              <Button
+                onClick={() => setShowImportDialog(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Import JSON
+              </Button>
+            </div>
 
             {showJsonPreview && (
               <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto text-xs font-mono">
@@ -331,6 +372,14 @@ export default function MarkupRulesModal({ feed, isOpen, onClose, onSave }: Mark
           </div>
         </div>
       </DialogContent>
+      
+      {/* Import Dialog */}
+      <JsonImportDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImport={handleImportJson}
+        feedKey={feed.feed_key || feed.label || 'unknown'}
+      />
     </Dialog>
   );
 }
