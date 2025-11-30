@@ -55,15 +55,20 @@ export default function MonitoringPage() {
   });
 
   const scheduleAlerts = useMemo(() => {
-    if (!snapshot) return [];
-    return snapshot.schedules.filter((schedule) => schedule.error_rate >= 20 || schedule.last_error);
+    if (!snapshot || !Array.isArray(snapshot.schedules)) return [];
+    return snapshot.schedules.filter((schedule) => {
+      const errorRate = schedule?.error_rate ?? 0;
+      return errorRate >= 20 || schedule?.last_error;
+    });
   }, [snapshot]);
 
   const tenantOptions = useMemo(() => {
-    if (!snapshot) return [];
+    if (!snapshot || !Array.isArray(snapshot.schedules)) return [];
     const unique = new Map<number, string>();
     snapshot.schedules.forEach((schedule) => {
-      unique.set(schedule.tenant_id, `Tenant ${schedule.tenant_id}`);
+      if (schedule?.tenant_id != null) {
+        unique.set(schedule.tenant_id, `Tenant ${schedule.tenant_id}`);
+      }
     });
     return Array.from(unique.entries()).map(([value, label]) => ({
       value: String(value),
@@ -87,8 +92,9 @@ export default function MonitoringPage() {
   }, [snapshot]);
 
   const filteredSchedules = useMemo(() => {
-    if (!snapshot) return [];
+    if (!snapshot || !Array.isArray(snapshot.schedules)) return [];
     return snapshot.schedules.filter((schedule) => {
+      if (!schedule) return false;
       if (filters.tenant !== 'all' && String(schedule.tenant_id) !== filters.tenant) {
         return false;
       }
@@ -98,7 +104,8 @@ export default function MonitoringPage() {
       if (filters.status === 'enabled' && !schedule.enabled) return false;
       if (filters.status === 'disabled' && schedule.enabled) return false;
       if (filters.status === 'alert') {
-        return schedule.error_rate >= 20 || !!schedule.last_error || schedule.active_job != null;
+        const errorRate = schedule.error_rate ?? 0;
+        return errorRate >= 20 || !!schedule.last_error || schedule.active_job != null;
       }
       return true;
     });

@@ -87,10 +87,40 @@ export const monitoringApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to load monitoring snapshot');
+      const errorText = await response.text();
+      throw new Error(`Failed to load monitoring snapshot: ${errorText || response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Normalize the response to ensure all required fields exist
+    return {
+      updated_at: data.updated_at || new Date().toISOString(),
+      scheduler: data.scheduler || {
+        is_running: false,
+        active_schedules: 0,
+        poll_interval_ms: 0,
+        monitoring_interval_ms: 0,
+      },
+      worker_health: data.worker_health || {
+        status: 'down',
+        last_check: new Date().toISOString(),
+        queue: {
+          pending: 0,
+          processing: 0,
+          failed: 0,
+        },
+        stuck_jobs: [],
+      },
+      alerts: Array.isArray(data.alerts) ? data.alerts : [],
+      queue: data.queue || {
+        pending: 0,
+        processing: 0,
+        failed: 0,
+      },
+      schedules: Array.isArray(data.schedules) ? data.schedules : [],
+      totals: data.totals,
+    };
   },
 };
 

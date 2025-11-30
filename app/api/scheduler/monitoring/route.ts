@@ -39,6 +39,19 @@ export async function GET(request: NextRequest) {
     }
 
     const payload = await response.json();
+    
+    // Log the response structure for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Monitoring API Response:', {
+        hasSchedules: Array.isArray(payload.schedules),
+        schedulesCount: payload.schedules?.length ?? 0,
+        hasWorkerHealth: !!payload.worker_health,
+        hasQueue: !!payload.queue,
+        hasAlerts: Array.isArray(payload.alerts),
+        sampleSchedule: payload.schedules?.[0],
+      });
+    }
+    
     return NextResponse.json(payload);
   } catch (error) {
     console.error('Monitoring proxy error:', error);

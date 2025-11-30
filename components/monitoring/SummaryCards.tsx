@@ -35,7 +35,7 @@ export function SummaryCards({ snapshot, isLoading }: SummaryCardsProps) {
     },
     {
       label: 'Stuck Jobs',
-      value: totals?.stuck_jobs ?? snapshot?.worker_health.stuck_jobs.length ?? 0,
+      value: totals?.stuck_jobs ?? snapshot?.worker_health?.stuck_jobs?.length ?? 0,
       icon: Zap,
       accent: 'text-amber-600 bg-amber-50',
     },
