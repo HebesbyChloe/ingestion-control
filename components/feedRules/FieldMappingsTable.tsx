@@ -113,9 +113,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
   const [isLoadingModules, setIsLoadingModules] = useState(false);
   const [isLoadingColumns, setIsLoadingColumns] = useState(false);
   
-  // Refs for blur detection and current mappings state
-  const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
-  const saveTimeoutRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  // Refs for current mappings state
   const mappingsRef = useRef<FieldMapping[]>([]);
   const fieldSchemaSourceRef = useRef<string>('');
   
@@ -439,79 +437,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     }
   };
 
-  // Auto-save function with debounce
-  const autoSave = useCallback(async (index: number) => {
-    // Clear any existing timeout for this index
-    const existingTimeout = saveTimeoutRef.current.get(index);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-
-    // Set new timeout
-    const timeout = setTimeout(async () => {
-      if (!feedId) {
-        console.error('Cannot save: feedId is missing');
-        setSaveError('Feed ID is required to save mappings');
-        return;
-      }
-
-      // Get current mappings from ref
-      const currentMappings = mappingsRef.current;
-      const mapping = currentMappings[index];
-      
-      if (!mapping || !mapping.source) {
-        console.log('Skipping save: mapping incomplete');
-        return;
-      }
-
-      // Validate mapping - allow empty target for now (user might be in process of selecting)
-      // Only save if target is set or is 'ignore'
-      if (mapping.target === '' || mapping.target === undefined) {
-        console.log('Skipping auto-save: target not set yet');
-        return;
-      }
-
-      setSavingIndex(index);
-      setSaveError(null);
-      
-      try {
-        console.log('Auto-saving mapping at index', index, 'feedId:', feedId, 'mapping:', JSON.stringify(mapping, null, 2));
-        console.log('Auto-saving all mappings:', JSON.stringify(currentMappings, null, 2));
-        const result = await feedRulesApi.updateFieldMappings(feedId, currentMappings);
-        console.log('Successfully auto-saved field mappings, result:', result);
-        setSaveSuccess(index);
-        setTimeout(() => setSaveSuccess(null), 2000);
-      } catch (error) {
-        console.error('Error auto-saving field mappings - full error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        const errorDetails = error instanceof Error && error.stack ? error.stack : String(error);
-        console.error('Auto-save error details:', errorDetails);
-        setSaveError(`Failed to auto-save: ${errorMessage}`);
-        setTimeout(() => setSaveError(null), 5000);
-      } finally {
-        setSavingIndex(null);
-      }
-    }, 1500); // 1.5 second debounce
-
-    saveTimeoutRef.current.set(index, timeout);
-  }, [feedId]);
-
-  // Handle row blur - auto-save
-  const handleRowBlur = useCallback((index: number, e: React.FocusEvent) => {
-    // Check if focus moved to another element in the same row
-    const currentTarget = e.currentTarget;
-    const relatedTarget = e.relatedTarget as HTMLElement;
-    
-    if (relatedTarget && currentTarget.contains(relatedTarget)) {
-      // Focus is still within the row, don't save yet
-      return;
-    }
-
-    // Focus left the row, save after a short delay
-    if (editingIndex === index) {
-      autoSave(index);
-    }
-  }, [editingIndex, autoSave]);
+  // Note: Auto-save removed - mappings are only saved when user clicks the save button
 
   const handleEdit = async (index: number) => {
     const mapping = mappings[index];
@@ -685,7 +611,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       setSelectedField('');
     }
     
-    // Update the mapping in the array immediately (for display and auto-save)
+    // Update the mapping in the local state only (not saved to API until save button is clicked)
     if (editingIndex !== null) {
       setMappings(prev => {
         const updated = [...prev];
@@ -888,14 +814,8 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                 return (
                   <TableRow 
                     key={index} 
-                    ref={(el) => {
-                      if (el) rowRefs.current.set(index, el);
-                    }}
-                    onBlur={(e) => {
-                      if (editingIndex === index) {
-                        handleRowBlur(index, e);
-                      }
-                    }}
+                    // Note: Removed rowRefs - no longer needed without auto-save on blur
+                    // Note: Removed auto-save on blur - only save when save button is clicked
                     onClick={(e) => {
                       // Only trigger edit if clicking directly on the row (not on a cell that already handled it)
                       if (editingIndex !== index && e.target === e.currentTarget) {

@@ -265,7 +265,10 @@ export default function FeedRulesPage() {
                     </div>
                     {fieldMappingValidation.unmappedFields.length > 0 && (
                       <div className="mt-2 text-xs text-amber-600">
-                        Unmapped fields: {fieldMappingValidation.unmappedFields.map(f => f.name).join(', ')}
+                        Unmapped fields: {fieldMappingValidation.unmappedFields
+                          .map(f => f.name || '(unnamed field)')
+                          .filter(name => name && name.trim() !== '')
+                          .join(', ') || '(unnamed or hidden field)'}
                       </div>
                     )}
                   </div>
