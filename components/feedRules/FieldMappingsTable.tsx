@@ -90,6 +90,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<number | null>(null);
+  const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
   
   // Module selection state
   const [modules, setModules] = useState<Module[]>([]);
@@ -132,14 +133,25 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     }
   }, [feedId]);
 
-  // Auto-populate all fields from field_schema (only once when schema is loaded)
-  const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
+  // Auto-populate all fields from field_schema (run after mappings are loaded)
   useEffect(() => {
-    if (fieldSchema?.fields && feedId && !hasAutoPopulated && mappings.length >= 0) {
+    console.log('Auto-populate effect:', {
+      isLoading,
+      hasFieldSchema: !!fieldSchema?.fields,
+      fieldSchemaFieldsCount: fieldSchema?.fields?.length || 0,
+      feedId,
+      hasAutoPopulated,
+      currentMappingsCount: mappings.length
+    });
+    
+    // Only run if not loading, has fieldSchema, has feedId, and hasn't populated yet
+    if (!isLoading && fieldSchema?.fields && feedId && !hasAutoPopulated) {
       const existingSources = new Set(mappings.map(m => m.source).filter(Boolean));
       const unmappedFields = fieldSchema.fields.filter(
         f => !existingSources.has(f.name)
       );
+      
+      console.log('Unmapped fields found:', unmappedFields.length, unmappedFields.map(f => f.name));
       
       if (unmappedFields.length > 0) {
         console.log('Auto-populating unmapped fields:', unmappedFields);
@@ -151,12 +163,13 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
         }));
         setMappings(prev => [...prev, ...newMappings]);
         setHasAutoPopulated(true);
-      } else if (mappings.length > 0) {
+      } else {
         // Mark as populated even if no new fields to add
+        console.log('No unmapped fields to add, marking as populated');
         setHasAutoPopulated(true);
       }
     }
-  }, [fieldSchema, feedId, hasAutoPopulated, mappings.length]);
+  }, [isLoading, fieldSchema, feedId, hasAutoPopulated, mappings]);
 
   // Load modules on mount
   useEffect(() => {
@@ -240,6 +253,22 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     const tableData = moduleColumns.tables[selectedTable];
     if (!tableData || !tableData.columns) return [];
     return tableData.columns.map(col => col.field);
+  };
+
+  const handleAdd = () => {
+    const newMapping: FieldMapping = {
+      source: '',
+      target: '',
+      type: 'direct',
+      overwrite: false,
+    };
+
+    setMappings([...mappings, newMapping]);
+    setEditingIndex(mappings.length);
+    setEditData(newMapping);
+    setSelectedModule('');
+    setSelectedTable('');
+    setSelectedField('');
   };
 
   // Auto-save function with debounce
@@ -600,6 +629,14 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
             </span>
           )}
         </div>
+        <Button 
+          onClick={handleAdd} 
+          size="sm" 
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Mapping
+        </Button>
       </div>
 
       {mappings.length === 0 ? (
