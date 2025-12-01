@@ -335,10 +335,29 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
 
   // Get available fields for selected table
   const getAvailableFields = (): string[] => {
-    if (!moduleColumns || !selectedTable) return [];
+    if (!moduleColumns || !selectedTable) {
+      console.log('⚠️ getAvailableFields: Missing moduleColumns or selectedTable', {
+        hasModuleColumns: !!moduleColumns,
+        selectedTable,
+        moduleColumnsStructure: moduleColumns ? {
+          module: moduleColumns.module,
+          tablesKeys: moduleColumns.tables ? Object.keys(moduleColumns.tables) : []
+        } : null
+      });
+      return [];
+    }
     const tableData = moduleColumns.tables[selectedTable];
-    if (!tableData || !tableData.columns) return [];
-    return tableData.columns.map(col => col.field);
+    if (!tableData || !tableData.columns) {
+      console.log('⚠️ getAvailableFields: Table data not found', {
+        selectedTable,
+        hasTableData: !!tableData,
+        tableData
+      });
+      return [];
+    }
+    const fields = tableData.columns.map(col => col.field);
+    console.log('✅ getAvailableFields: Found fields', fields);
+    return fields;
   };
 
   const handleAdd = () => {
@@ -974,17 +993,48 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                                   <SelectValue placeholder={isLoadingColumns ? "Loading..." : "Table"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {moduleColumns && selectedModule && moduleColumns.tables && Object.keys(moduleColumns.tables).length > 0 ? (
-                                    Object.keys(moduleColumns.tables).map((table) => (
+                                  {(() => {
+                                    console.log('🔍 Rendering table dropdown:', {
+                                      hasModuleColumns: !!moduleColumns,
+                                      selectedModule,
+                                      hasTables: !!moduleColumns?.tables,
+                                      tablesKeys: moduleColumns?.tables ? Object.keys(moduleColumns.tables) : [],
+                                      isLoadingColumns,
+                                      moduleColumnsData: moduleColumns
+                                    });
+                                    
+                                    if (isLoadingColumns) {
+                                      return <div className="px-2 py-1.5 text-sm text-slate-400">Loading tables...</div>;
+                                    }
+                                    
+                                    if (!moduleColumns || !selectedModule) {
+                                      return <div className="px-2 py-1.5 text-sm text-slate-400">Select a module first</div>;
+                                    }
+                                    
+                                    if (!moduleColumns.tables || Object.keys(moduleColumns.tables).length === 0) {
+                                      return <div className="px-2 py-1.5 text-sm text-slate-400">No tables available</div>;
+                                    }
+                                    
+                                    const tableKeys = Object.keys(moduleColumns.tables);
+                                    // Filter out the module name if it appears as a key
+                                    const filteredTableKeys = tableKeys.filter(key => key !== selectedModule && key !== moduleColumns.module);
+                                    console.log('✅ Rendering table options:', {
+                                      allKeys: tableKeys,
+                                      filteredKeys: filteredTableKeys,
+                                      selectedModule,
+                                      moduleColumnsModule: moduleColumns.module
+                                    });
+                                    
+                                    if (filteredTableKeys.length === 0) {
+                                      return <div className="px-2 py-1.5 text-sm text-slate-400">No tables found (module name may be in keys)</div>;
+                                    }
+                                    
+                                    return filteredTableKeys.map((table) => (
                                       <SelectItem key={table} value={table}>
                                         {table}
                                       </SelectItem>
-                                    ))
-                                  ) : (
-                                    <div className="px-2 py-1.5 text-sm text-slate-400">
-                                      {isLoadingColumns ? 'Loading tables...' : (moduleColumns && selectedModule ? 'No tables available' : 'Select a module first')}
-                                    </div>
-                                  )}
+                                    ));
+                                  })()}
                                 </SelectContent>
                               </Select>
                               

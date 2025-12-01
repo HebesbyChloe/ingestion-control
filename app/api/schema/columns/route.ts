@@ -32,6 +32,17 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
+    
+    // Log the actual response for debugging
+    console.log('📥 Schema columns API response:', JSON.stringify(data, null, 2));
+    console.log('📊 Response type:', typeof data, Array.isArray(data) ? 'array' : 'object');
+    if (data && typeof data === 'object') {
+      console.log('📊 Response keys:', Object.keys(data));
+      if (modules) {
+        console.log(`📊 Module "${modules}" data:`, data[modules]);
+      }
+    }
+    
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching schema columns:', error);

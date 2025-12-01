@@ -155,28 +155,117 @@ export const schemaApi = {
       // If it's an object but not in expected format, try to transform
       if (data && typeof data === 'object' && !Array.isArray(data)) {
         console.log('🔄 Attempting to transform object format');
-        // Check if it has tables as direct keys
+        console.log('📊 Object structure:', {
+          keys: Object.keys(data),
+          firstKeyValue: data[Object.keys(data)[0]],
+          isArray: Array.isArray(data[Object.keys(data)[0]])
+        });
+        
         const result: ModuleColumns = {
           module: data.module || module,
           tables: {}
         };
         
-        // If data has table names as keys
-        for (const key in data) {
-          if (key !== 'module' && typeof data[key] === 'object') {
-            result.tables[key] = {
-              columns: Array.isArray(data[key]) 
-                ? data[key].map((col: any) => ({
+        // Check if the module name itself is a key (e.g., {inventory: {...}})
+        // This is the actual format: { "inventory": { "stock": ["id", "product_sku", ...], "warehouse": [...] } }
+        if (data[module] && typeof data[module] === 'object') {
+          console.log(`📦 Found module key "${module}" in response`);
+          const moduleData = data[module];
+          result.module = module;
+          
+          // If moduleData has tables property (already in expected format)
+          if (moduleData.tables && typeof moduleData.tables === 'object') {
+            result.tables = moduleData.tables;
+            console.log('✅ Found tables in moduleData.tables');
+            return result;
+          }
+          
+          // If moduleData is an object with table names as keys
+          // Each value is an array of field name strings: { "stock": ["id", "product_sku", ...] }
+          for (const tableName in moduleData) {
+            if (tableName === 'module') continue;
+            
+            const tableData = moduleData[tableName];
+            
+            if (Array.isArray(tableData)) {
+              // Array of field name strings: ["id", "product_sku", ...]
+              console.log(`📋 Table "${tableName}" has ${tableData.length} fields (array of strings)`);
+              result.tables[tableName] = {
+                columns: tableData.map((fieldName: any) => {
+                  // If it's a string, use it directly as the field name
+                  if (typeof fieldName === 'string') {
+                    return {
+                      table: tableName,
+                      field: fieldName,
+                      type: undefined // Type info not available in this format
+                    };
+                  }
+                  // If it's an object, extract field info
+                  return {
+                    table: tableName,
+                    field: fieldName.field || fieldName.column || fieldName.name || String(fieldName),
+                    type: fieldName.type
+                  };
+                })
+              };
+            } else if (tableData && typeof tableData === 'object') {
+              if (tableData.columns) {
+                // It already has columns structure
+                result.tables[tableName] = tableData;
+              } else {
+                // Try to extract columns from nested object
+                result.tables[tableName] = {
+                  columns: Object.keys(tableData).map(fieldName => ({
+                    table: tableName,
+                    field: fieldName,
+                    type: tableData[fieldName]?.type
+                  }))
+                };
+              }
+            }
+          }
+          
+          console.log('✅ Transformed module data:', JSON.stringify(result, null, 2));
+          console.log('📊 Result tables:', Object.keys(result.tables));
+          return result;
+        } else {
+          // If data has table names as direct keys (not nested under module)
+          for (const key in data) {
+            // Skip if key matches the module name (it's not a table)
+            if (key.toLowerCase() === module.toLowerCase()) {
+              console.log(`⏭️ Skipping module key "${key}" in direct keys loop`);
+              continue;
+            }
+            
+            if (key !== 'module' && typeof data[key] === 'object') {
+              if (Array.isArray(data[key])) {
+                // It's an array of columns
+                result.tables[key] = {
+                  columns: data[key].map((col: any) => ({
                     table: key,
-                    field: col.field || col.column || col.name,
+                    field: col.field || col.column || col.name || col,
                     type: col.type
                   }))
-                : []
-            };
+                };
+              } else if (data[key].columns) {
+                // It already has columns structure
+                result.tables[key] = data[key];
+              } else if (typeof data[key] === 'object') {
+                // Try to extract columns from nested object
+                result.tables[key] = {
+                  columns: Object.keys(data[key]).map(fieldName => ({
+                    table: key,
+                    field: fieldName,
+                    type: data[key][fieldName]?.type
+                  }))
+                };
+              }
+            }
           }
         }
         
         console.log('✅ Transformed object data:', JSON.stringify(result, null, 2));
+        console.log('📊 Result tables:', Object.keys(result.tables));
         return result;
       }
       
