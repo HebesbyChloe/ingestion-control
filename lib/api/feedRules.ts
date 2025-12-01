@@ -502,12 +502,19 @@ export const feedRulesApi = {
    */
   updateFieldMappings: async (feedId: number, mappings: FieldMapping[]): Promise<Feed> => {
     try {
+      console.log('Updating field mappings for feed:', feedId, mappings);
       const updatedFeed = await feedsApi.update(feedId, {
         field_mapping: mappings,
       });
+      console.log('Successfully updated field mappings:', updatedFeed);
       return updatedFeed;
     } catch (error) {
-      console.error('Error updating field mappings:', error);
+      console.error('Error updating field mappings:', {
+        feedId,
+        mappingsCount: mappings.length,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   },
