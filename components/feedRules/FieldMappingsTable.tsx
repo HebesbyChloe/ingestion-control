@@ -106,6 +106,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
   const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   const saveTimeoutRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const mappingsRef = useRef<FieldMapping[]>([]);
+  const fieldSchemaSourceRef = useRef<string>('');
   
   // Keep ref in sync with state
   useEffect(() => {
@@ -132,16 +133,31 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       setHasAutoPopulated(false);
     }
   }, [feedId]);
-
+  
   // Auto-populate all fields from field_schema (run after mappings are loaded AND fieldSchema is available)
   useEffect(() => {
+    const currentSchemaSource = fieldSchema?.source || '';
+    const schemaChanged = fieldSchemaSourceRef.current !== currentSchemaSource;
+    
+    // Reset hasAutoPopulated if fieldSchema changed or became available for the first time
+    if (schemaChanged && fieldSchema?.fields && fieldSchema.fields.length > 0) {
+      console.log('Field schema changed or became available, resetting auto-populate flag', {
+        oldSource: fieldSchemaSourceRef.current,
+        newSource: currentSchemaSource,
+        fieldsCount: fieldSchema.fields.length
+      });
+      setHasAutoPopulated(false);
+      fieldSchemaSourceRef.current = currentSchemaSource;
+    }
+    
     console.log('Auto-populate effect:', {
       isLoading,
       hasFieldSchema: !!fieldSchema?.fields,
       fieldSchemaFieldsCount: fieldSchema?.fields?.length || 0,
       feedId,
       hasAutoPopulated,
-      currentMappingsCount: mappings.length
+      currentMappingsCount: mappings.length,
+      schemaChanged
     });
     
     // Only run if not loading, has fieldSchema, has feedId, and hasn't populated yet
@@ -162,13 +178,19 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
           type: 'direct' as const,
           overwrite: false,
         }));
-        setMappings(prev => [...prev, ...newMappings]);
+        setMappings(prev => {
+          const combined = [...prev, ...newMappings];
+          console.log('Combined mappings after auto-populate:', combined.length, 'fields');
+          return combined;
+        });
         setHasAutoPopulated(true);
       } else {
         // Mark as populated even if no new fields to add (all fields already mapped)
         console.log('No unmapped fields to add, marking as populated');
         setHasAutoPopulated(true);
       }
+    } else if (!isLoading && fieldSchema?.fields && fieldSchema.fields.length > 0 && feedId && hasAutoPopulated) {
+      console.log('Auto-populate skipped - already populated or conditions not met');
     }
   }, [isLoading, fieldSchema, feedId, hasAutoPopulated, mappings]);
 
