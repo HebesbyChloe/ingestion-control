@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
         'X-API-Key': API_KEY,
         'Accept': 'application/json',
       },
+      next: { revalidate: 30 }, // Cache for 30 seconds (feeds change more frequently)
     });
 
     if (!response.ok) {
@@ -25,7 +26,11 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     console.error('Error fetching feeds:', error);
     return NextResponse.json(
@@ -73,15 +78,12 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { id, ...updateData } = body;
     
-    console.log('PATCH /api/feeds - Request body:', JSON.stringify(body, null, 2));
-    console.log('PATCH /api/feeds - Update data:', JSON.stringify(updateData, null, 2));
-    console.log('PATCH /api/feeds - Feed ID:', id);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('PATCH /api/feeds - Feed ID:', id);
+    }
     
     const url = `${API_GATEWAY_URL}/rest/sys_feeds?id=eq.${id}`;
-    console.log('PATCH /api/feeds - Gateway URL:', url);
-    
     const requestBody = JSON.stringify(updateData);
-    console.log('PATCH /api/feeds - Request body to gateway:', requestBody);
     
     const response = await fetch(url, {
       method: 'PATCH',
@@ -93,8 +95,6 @@ export async function PATCH(request: NextRequest) {
       body: requestBody,
     });
 
-    console.log('PATCH /api/feeds - Response status:', response.status, response.statusText);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('PATCH /api/feeds - Error response:', errorText);
@@ -105,7 +105,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('PATCH /api/feeds - Success response:', JSON.stringify(data, null, 2));
     return NextResponse.json(data);
   } catch (error) {
     console.error('PATCH /api/feeds - Exception:', error);

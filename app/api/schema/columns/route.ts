@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         'X-API-Key': API_KEY,
         'Accept': 'application/json',
       },
+      next: { revalidate: 300 }, // Cache for 5 minutes (schema changes rarely)
     });
 
     if (!response.ok) {
@@ -33,17 +34,23 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     
-    // Log the actual response for debugging
-    console.log('📥 Schema columns API response:', JSON.stringify(data, null, 2));
-    console.log('📊 Response type:', typeof data, Array.isArray(data) ? 'array' : 'object');
-    if (data && typeof data === 'object') {
-      console.log('📊 Response keys:', Object.keys(data));
-      if (modules) {
-        console.log(`📊 Module "${modules}" data:`, data[modules]);
+    // Log the actual response for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📥 Schema columns API response:', JSON.stringify(data, null, 2));
+      console.log('📊 Response type:', typeof data, Array.isArray(data) ? 'array' : 'object');
+      if (data && typeof data === 'object') {
+        console.log('📊 Response keys:', Object.keys(data));
+        if (modules) {
+          console.log(`📊 Module "${modules}" data:`, data[modules]);
+        }
       }
     }
     
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Error fetching schema columns:', error);
     return NextResponse.json(

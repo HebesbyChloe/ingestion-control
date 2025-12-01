@@ -21,10 +21,12 @@ export async function GET(request: NextRequest) {
     // Use Gateway endpoint: /typesense/collections
     const gatewayUrl = `${API_GATEWAY_URL}/typesense/collections`;
     
+    if (process.env.NODE_ENV === 'development') {
     console.log('Fetching collections through Gateway:', {
       url: gatewayUrl,
       hasApiKey: !!GATEWAY_API_KEY,
     });
+    }
 
     const response = await fetch(gatewayUrl, {
       method: 'GET',
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
         'X-API-Key': GATEWAY_API_KEY,
         'Content-Type': 'application/json',
       },
+      next: { revalidate: 60 }, // Cache for 60 seconds
     });
 
     if (!response.ok) {
@@ -65,7 +68,11 @@ export async function GET(request: NextRequest) {
     // Gateway returns array of collections directly
     const collections = Array.isArray(data) ? data : (data.collections || []);
     
-    return NextResponse.json(collections);
+    return NextResponse.json(collections, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error('Error fetching collections:', error);
     return NextResponse.json(
