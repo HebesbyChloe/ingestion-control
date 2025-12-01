@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Edit2, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Loader2, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import type { FieldMapping } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
 import { feedRulesApi } from '@/lib/api/feedRules';
@@ -149,14 +149,36 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
   
   // Auto-populate all fields from field_schema (run after mappings are loaded AND fieldSchema is available)
   useEffect(() => {
+    console.log('🔍 AUTO-POPULATE EFFECT RUNNING');
+    console.log('📥 Input data:', {
+      isLoading,
+      feedId,
+      hasFieldSchema: !!fieldSchema,
+      fieldSchemaType: typeof fieldSchema,
+      fieldSchemaKeys: fieldSchema ? Object.keys(fieldSchema) : [],
+      fieldSchemaFields: fieldSchema?.fields,
+      fieldSchemaFieldsCount: fieldSchema?.fields?.length || 0,
+      currentMappings: mappings,
+      currentMappingsCount: mappings.length,
+      hasAutoPopulated
+    });
+    
     const hasSchema = !!fieldSchema?.fields && fieldSchema.fields.length > 0;
     const currentSchemaSource = fieldSchema?.source || '';
     const schemaId = hasSchema ? `${currentSchemaSource}-${fieldSchema.fields.length}` : '';
     const schemaChanged = fieldSchemaSourceRef.current !== schemaId;
     
+    console.log('🔍 Schema detection:', {
+      hasSchema,
+      currentSchemaSource,
+      schemaId,
+      schemaChanged,
+      previousRef: fieldSchemaSourceRef.current
+    });
+    
     // Reset hasAutoPopulated if fieldSchema changed or became available for the first time
     if (hasSchema && (schemaChanged || fieldSchemaSourceRef.current === '')) {
-      console.log('Field schema changed or became available, resetting auto-populate flag', {
+      console.log('🔄 Field schema changed or became available, resetting auto-populate flag', {
         oldRef: fieldSchemaSourceRef.current,
         newRef: schemaId,
         fieldsCount: fieldSchema.fields.length,
@@ -166,7 +188,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       fieldSchemaSourceRef.current = schemaId;
     }
     
-    console.log('Auto-populate effect check:', {
+    console.log('🔍 Auto-populate effect check:', {
       isLoading,
       hasFieldSchema: hasSchema,
       fieldSchemaFieldsCount: fieldSchema?.fields?.length || 0,
@@ -178,19 +200,20 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     });
     
     // Only run if not loading, has fieldSchema, has feedId, and hasn't populated yet
-    // This will run when fieldSchema becomes available OR when mappings finish loading
     if (!isLoading && hasSchema && feedId && !hasAutoPopulated) {
+      console.log('✅ CONDITIONS MET - Running auto-populate logic');
       const existingSources = new Set(mappings.map(m => m.source).filter(Boolean));
       const unmappedFields = fieldSchema.fields.filter(
         f => !existingSources.has(f.name)
       );
       
-      console.log('Checking unmapped fields:', {
+      console.log('📊 Checking unmapped fields:', {
         totalFieldsInSchema: fieldSchema.fields.length,
         existingMappings: mappings.length,
         existingSources: Array.from(existingSources),
         unmappedCount: unmappedFields.length,
-        unmappedFields: unmappedFields.map(f => f.name)
+        unmappedFields: unmappedFields.map(f => f.name),
+        allSchemaFieldNames: fieldSchema.fields.map(f => f.name)
       });
       
       if (unmappedFields.length > 0) {
@@ -204,18 +227,22 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
         setMappings(prev => {
           const combined = [...prev, ...newMappings];
           console.log('✅ Combined mappings after auto-populate:', combined.length, 'total fields');
+          console.log('✅ New mappings added:', newMappings);
           return combined;
         });
         setHasAutoPopulated(true);
       } else {
-        // Mark as populated even if no new fields to add (all fields already mapped)
-        console.log('All fields already mapped, marking as populated');
+        console.log('ℹ️ All fields already mapped, marking as populated');
         setHasAutoPopulated(true);
       }
-    } else if (!isLoading && hasSchema && feedId && hasAutoPopulated) {
-      console.log('⚠️ Auto-populate skipped - already populated');
-    } else if (!isLoading && !hasSchema && feedId) {
-      console.log('⚠️ Auto-populate skipped - no fieldSchema available');
+    } else {
+      console.log('⚠️ Auto-populate skipped:', {
+        reason: !isLoading ? 'loading' : !hasSchema ? 'no schema' : !feedId ? 'no feedId' : 'already populated',
+        isLoading,
+        hasSchema,
+        feedId,
+        hasAutoPopulated
+      });
     }
   }, [isLoading, fieldSchema, feedId, hasAutoPopulated, mappings]);
 
@@ -321,6 +348,69 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     setSelectedModule('');
     setSelectedTable('');
     setSelectedField('');
+  };
+
+  const handleManualAutoPopulate = () => {
+    console.log('🔄 MANUAL AUTO-POPULATE TRIGGERED');
+    console.log('Current state:', {
+      feedId,
+      hasFieldSchema: !!fieldSchema,
+      fieldSchemaFieldsCount: fieldSchema?.fields?.length || 0,
+      currentMappingsCount: mappings.length,
+      isLoading,
+      hasAutoPopulated,
+      fieldSchema: fieldSchema
+    });
+    
+    if (!fieldSchema?.fields || fieldSchema.fields.length === 0) {
+      console.error('❌ Cannot auto-populate: fieldSchema has no fields');
+      alert('Field schema is not available. Please ensure the feed has a field schema loaded.');
+      return;
+    }
+    
+    if (!feedId) {
+      console.error('❌ Cannot auto-populate: feedId is missing');
+      alert('Feed ID is required to auto-populate fields.');
+      return;
+    }
+    
+    // Reset the flag to force auto-populate
+    setHasAutoPopulated(false);
+    fieldSchemaSourceRef.current = '';
+    
+    // Force trigger auto-populate logic
+    const existingSources = new Set(mappings.map(m => m.source).filter(Boolean));
+    const unmappedFields = fieldSchema.fields.filter(
+      f => !existingSources.has(f.name)
+    );
+    
+    console.log('📊 Auto-populate analysis:', {
+      totalFieldsInSchema: fieldSchema.fields.length,
+      existingMappings: mappings.length,
+      existingSources: Array.from(existingSources),
+      unmappedCount: unmappedFields.length,
+      unmappedFields: unmappedFields.map(f => f.name),
+      allSchemaFields: fieldSchema.fields.map(f => f.name)
+    });
+    
+    if (unmappedFields.length > 0) {
+      console.log('✅ Auto-populating', unmappedFields.length, 'unmapped fields');
+      const newMappings = unmappedFields.map(field => ({
+        source: field.name,
+        target: '',
+        type: 'direct' as const,
+        overwrite: false,
+      }));
+      setMappings(prev => {
+        const combined = [...prev, ...newMappings];
+        console.log('✅ Successfully added', newMappings.length, 'new mappings. Total:', combined.length);
+        return combined;
+      });
+      setHasAutoPopulated(true);
+    } else {
+      console.log('ℹ️ All fields are already mapped');
+      alert('All fields from the schema are already mapped.');
+    }
   };
 
   // Auto-save function with debounce
@@ -687,14 +777,26 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
             </span>
           )}
         </div>
-        <Button 
-          onClick={handleAdd} 
-          size="sm" 
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add Mapping
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleManualAutoPopulate} 
+            size="sm" 
+            variant="outline"
+            className="gap-2"
+            disabled={!fieldSchema?.fields || isLoading}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Auto-Populate Fields
+          </Button>
+          <Button 
+            onClick={handleAdd} 
+            size="sm" 
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Mapping
+          </Button>
+        </div>
       </div>
 
       {mappings.length === 0 ? (
