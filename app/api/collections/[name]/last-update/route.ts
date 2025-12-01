@@ -80,25 +80,41 @@ export async function GET(
         updatedAt = hit.raw.updated_at;
       }
       
-      // Convert to Unix timestamp
+      // Convert to Unix timestamp (in seconds)
       let timestamp: number | null = null;
       
       if (typeof updatedAt === 'number') {
-        timestamp = updatedAt;
+        // Check if it's already in milliseconds (greater than year 2100 in seconds)
+        // Unix timestamps in seconds are typically < 2147483647 (year 2038)
+        // If timestamp > 1000000000000, it's likely already in milliseconds
+        if (updatedAt > 1000000000000) {
+          // Convert milliseconds to seconds
+          timestamp = Math.floor(updatedAt / 1000);
+        } else {
+          // Already in seconds
+          timestamp = updatedAt;
+        }
       } else if (typeof updatedAt === 'string') {
-        // Try parsing as ISO string or Unix timestamp
+        // Try parsing as ISO string first
         const parsed = Date.parse(updatedAt);
         if (!isNaN(parsed)) {
-          timestamp = Math.floor(parsed / 1000); // Convert to Unix timestamp
+          // Convert milliseconds to Unix timestamp (seconds)
+          timestamp = Math.floor(parsed / 1000);
         } else {
-          const numParsed = parseInt(updatedAt, 10);
+          // Try parsing as number string
+          const numParsed = parseFloat(updatedAt);
           if (!isNaN(numParsed)) {
-            timestamp = numParsed;
+            // Check if it's in milliseconds
+            if (numParsed > 1000000000000) {
+              timestamp = Math.floor(numParsed / 1000);
+            } else {
+              timestamp = Math.floor(numParsed);
+            }
           }
         }
       }
       
-      if (timestamp !== null) {
+      if (timestamp !== null && timestamp > 0) {
         return NextResponse.json({ last_updated_at: timestamp });
       }
     }

@@ -24,11 +24,17 @@ import {
   TrendingUp,
   CheckCircle2,
   AlertCircle,
+  X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { collectionsApi, type CollectionWithLastUpdate, type TypesenseMetrics, type TypesenseStats, type TypesenseHealth } from '@/lib/api/collections';
 
 export default function CollectionsPage() {
+  const [selectedCollection, setSelectedCollection] = useState<CollectionWithLastUpdate | null>(null);
+  const [showFieldsDialog, setShowFieldsDialog] = useState(false);
+
   // Fetch collections with last update times
   const { data: collections = [], isLoading, error, refetch } = useQuery({
     queryKey: ['collections'],
@@ -69,7 +75,17 @@ export default function CollectionsPage() {
   const formatDate = (timestamp: number | null | undefined): string => {
     if (!timestamp) return 'Never';
     try {
-      const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
+      // Check if timestamp is already in milliseconds (greater than year 2100 in seconds)
+      // Unix timestamps in seconds are typically < 2147483647 (year 2038)
+      // If timestamp > 1000000000000, it's likely already in milliseconds
+      let date: Date;
+      if (timestamp > 1000000000000) {
+        // Already in milliseconds
+        date = new Date(timestamp);
+      } else {
+        // Convert Unix timestamp (seconds) to milliseconds
+        date = new Date(timestamp * 1000);
+      }
       return date.toLocaleString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -86,7 +102,13 @@ export default function CollectionsPage() {
   const formatRelativeTime = (timestamp: number | null | undefined): string => {
     if (!timestamp) return 'Never';
     try {
-      const date = new Date(timestamp * 1000);
+      // Check if timestamp is already in milliseconds
+      let date: Date;
+      if (timestamp > 1000000000000) {
+        date = new Date(timestamp);
+      } else {
+        date = new Date(timestamp * 1000);
+      }
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
@@ -101,6 +123,11 @@ export default function CollectionsPage() {
     } catch (e) {
       return 'Unknown';
     }
+  };
+
+  const handleFieldsClick = (collection: CollectionWithLastUpdate) => {
+    setSelectedCollection(collection);
+    setShowFieldsDialog(true);
   };
 
   // Format bytes to human readable
@@ -247,7 +274,11 @@ export default function CollectionsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-mono text-xs">
+                        <Badge 
+                          variant="secondary" 
+                          className="font-mono text-xs cursor-pointer hover:bg-slate-200 transition-colors"
+                          onClick={() => handleFieldsClick(collection)}
+                        >
                           {collection.fields?.length || 0} fields
                         </Badge>
                       </TableCell>
@@ -487,6 +518,83 @@ export default function CollectionsPage() {
           </Card>
         </div>
       )}
+
+      {/* Fields Details Dialog */}
+      <Dialog open={showFieldsDialog} onOpenChange={setShowFieldsDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-indigo-600" />
+              Fields in "{selectedCollection?.name}"
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCollection?.fields?.length || 0} field(s) defined in this collection
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {selectedCollection?.fields && selectedCollection.fields.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-semibold">Field Name</TableHead>
+                      <TableHead className="font-semibold">Type</TableHead>
+                      <TableHead className="font-semibold text-center">Optional</TableHead>
+                      <TableHead className="font-semibold text-center">Facet</TableHead>
+                      <TableHead className="font-semibold text-center">Index</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedCollection.fields.map((field, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-mono text-sm">{field.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {field.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {field.optional ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              Yes
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                              No
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {field.facet ? (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              Yes
+                            </Badge>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {field.index !== false ? (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              Yes
+                            </Badge>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                No fields defined for this collection
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
