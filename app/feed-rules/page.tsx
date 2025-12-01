@@ -178,13 +178,39 @@ export default function FeedRulesPage() {
     }
 
     const fieldMappings = selectedFeed.field_mapping || [];
-    const mappedSourceFields = new Set(
-      fieldMappings.map((m: any) => m?.source).filter(Boolean)
-    );
+    
+    // Create a map of source field -> mapping to check both existence and valid target
+    const mappingMap = new Map<string, any>();
+    fieldMappings.forEach((m: any) => {
+      if (m?.source) {
+        mappingMap.set(m.source, m);
+      }
+    });
 
-    const unmappedFields = selectedFeed.field_schema.fields.filter(
-      (field) => !mappedSourceFields.has(field.name)
-    );
+    // A field is considered mapped if:
+    // 1. It exists in the mappings
+    // 2. The target is either "ignore" or a non-empty string (valid path)
+    const unmappedFields = selectedFeed.field_schema.fields.filter((field) => {
+      const mapping = mappingMap.get(field.name);
+      if (!mapping) {
+        console.log(`❌ Field "${field.name}" not found in mappings`);
+        return true; // Field not found in mappings
+      }
+      // Check if target is valid: must be "ignore" or a non-empty string
+      const target = mapping.target;
+      if (!target || (typeof target === 'string' && target.trim() === '')) {
+        console.log(`❌ Field "${field.name}" has empty target:`, mapping);
+        return true; // Target is empty, field is not properly mapped
+      }
+      return false; // Field is properly mapped
+    });
+    
+    console.log('🔍 Field mapping validation:', {
+      totalFields: selectedFeed.field_schema.fields.length,
+      totalMappings: fieldMappings.length,
+      unmappedCount: unmappedFields.length,
+      unmappedFields: unmappedFields.map(f => f.name),
+    });
 
     return {
       isValid: unmappedFields.length === 0,
