@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Edit2, Check, X, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import type { FieldMapping } from '@/lib/api/feedRules';
 import type { FieldSchema } from '@/lib/api/feeds';
 import { feedRulesApi } from '@/lib/api/feedRules';
@@ -391,9 +391,8 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                               <Select
                                 value={selectedModule}
                                 onValueChange={handleModuleChange}
-                                disabled={isLoadingModules}
                               >
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className="h-8 text-xs" disabled={isLoadingModules}>
                                   <SelectValue placeholder={isLoadingModules ? "Loading..." : "Module"} />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -408,9 +407,8 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                               <Select
                                 value={selectedTable}
                                 onValueChange={handleTableChange}
-                                disabled={!selectedModule || isLoadingColumns}
                               >
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className="h-8 text-xs" disabled={!selectedModule || isLoadingColumns}>
                                   <SelectValue placeholder={isLoadingColumns ? "Loading..." : "Table"} />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -425,9 +423,8 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                               <Select
                                 value={selectedField}
                                 onValueChange={handleFieldChange}
-                                disabled={!selectedTable}
                               >
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className="h-8 text-xs" disabled={!selectedTable}>
                                   <SelectValue placeholder="Field" />
                                 </SelectTrigger>
                                 <SelectContent>
