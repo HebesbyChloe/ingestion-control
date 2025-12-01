@@ -271,10 +271,17 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
   useEffect(() => {
     if (selectedModule) {
       setIsLoadingColumns(true);
-      console.log('Loading columns for module:', selectedModule, 'editingIndex:', editingIndex);
+      console.log('📦 useEffect: Loading columns for module:', selectedModule, 'editingIndex:', editingIndex);
       schemaApi.getModuleColumns(selectedModule)
         .then((data) => {
-          console.log('Loaded module columns:', data);
+          console.log('✅ useEffect: Loaded module columns:', JSON.stringify(data, null, 2));
+          console.log('📊 useEffect: Module columns structure:', {
+            hasModule: !!data.module,
+            hasTables: !!data.tables,
+            tablesCount: data.tables ? Object.keys(data.tables).length : 0,
+            tableNames: data.tables ? Object.keys(data.tables) : [],
+            tablesObject: data.tables
+          });
           setModuleColumns(data);
           // Only reset table/field if we're not currently editing (to preserve selections)
           if (editingIndex === null) {
@@ -283,7 +290,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
           }
         })
         .catch((error) => {
-          console.error('Error loading module columns:', error);
+          console.error('❌ useEffect: Error loading module columns:', error);
           setModuleColumns(null);
         })
         .finally(() => setIsLoadingColumns(false));
@@ -713,8 +720,15 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     // Load columns for the module (always, not just when editing)
     setIsLoadingColumns(true);
     try {
-      console.log('Loading columns for module in handleModuleChange:', module);
+      console.log('📦 Loading columns for module in handleModuleChange:', module);
       const data = await schemaApi.getModuleColumns(module);
+      console.log('✅ Loaded module columns:', JSON.stringify(data, null, 2));
+      console.log('📊 Module columns structure:', {
+        hasModule: !!data.module,
+        hasTables: !!data.tables,
+        tablesCount: data.tables ? Object.keys(data.tables).length : 0,
+        tableNames: data.tables ? Object.keys(data.tables) : []
+      });
       setModuleColumns(data);
       
       // Auto-suggest table/field based on source field name (if editing)
@@ -960,14 +974,16 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                                   <SelectValue placeholder={isLoadingColumns ? "Loading..." : "Table"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {moduleColumns && selectedModule && Object.keys(moduleColumns.tables || {}).length > 0 ? (
-                                    Object.keys(moduleColumns.tables || {}).map((table) => (
+                                  {moduleColumns && selectedModule && moduleColumns.tables && Object.keys(moduleColumns.tables).length > 0 ? (
+                                    Object.keys(moduleColumns.tables).map((table) => (
                                       <SelectItem key={table} value={table}>
                                         {table}
                                       </SelectItem>
                                     ))
                                   ) : (
-                                    <div className="px-2 py-1.5 text-sm text-slate-400">No tables available</div>
+                                    <div className="px-2 py-1.5 text-sm text-slate-400">
+                                      {isLoadingColumns ? 'Loading tables...' : (moduleColumns && selectedModule ? 'No tables available' : 'Select a module first')}
+                                    </div>
                                   )}
                                 </SelectContent>
                               </Select>
