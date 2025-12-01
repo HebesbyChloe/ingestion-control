@@ -487,10 +487,17 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     }
   }, [editingIndex, autoSave]);
 
-  const handleEdit = (index: number) => {
+  const handleEdit = async (index: number) => {
     const mapping = mappings[index];
+    console.log('🖊️ Entering edit mode for mapping:', index, mapping);
     setEditingIndex(index);
-    setEditData({ ...mapping });
+    
+    // Initialize editData - if target is empty, set it to empty string (will show "Map to Field")
+    const initialEditData = {
+      ...mapping,
+      target: mapping.target || '', // Empty string means "Map to Field" is selected but not configured
+    };
+    setEditData(initialEditData);
     setSaveError(null);
     setSaveSuccess(null);
     
@@ -510,6 +517,14 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       setSelectedModule('');
       setSelectedTable('');
       setSelectedField('');
+      
+      // Auto-suggest if source field is set and modules are available
+      if (mapping.source && modules.length > 0) {
+        console.log('🔍 Auto-suggesting for source field:', mapping.source);
+        // Try to find best matching module/table/field
+        // For now, we'll let user select module, then auto-suggest table/field
+        // This will be handled when module is selected
+      }
     }
   };
 
@@ -671,8 +686,16 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
   };
 
   const handleTargetChange = (value: string) => {
+    console.log('🎯 Target change:', value);
     if (value === 'ignore') {
       handleUpdate('target', 'ignore');
+      setSelectedModule('');
+      setSelectedTable('');
+      setSelectedField('');
+    } else if (value === 'map') {
+      // User selected "Map to Field" - clear any existing target but don't set a value yet
+      // The actual target will be set when module/table/field are selected
+      handleUpdate('target', '');
       setSelectedModule('');
       setSelectedTable('');
       setSelectedField('');
@@ -840,16 +863,29 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                         handleRowBlur(index, e);
                       }
                     }}
-                    onClick={() => {
-                      if (editingIndex !== index) {
+                    onClick={(e) => {
+                      // Only trigger edit if clicking directly on the row (not on a cell that already handled it)
+                      if (editingIndex !== index && e.target === e.currentTarget) {
                         handleEdit(index);
                       }
                     }}
                     className={isEditing ? 'bg-blue-50' : 'hover:bg-slate-50 cursor-pointer'}
                     tabIndex={0}
                   >
-                    <TableCell className="text-center">{index + 1}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="text-center" onClick={(e) => {
+                      if (!isEditing) {
+                        e.stopPropagation();
+                        handleEdit(index);
+                      }
+                    }}>
+                      {index + 1}
+                    </TableCell>
+                    <TableCell onClick={(e) => {
+                      if (!isEditing) {
+                        e.stopPropagation();
+                        handleEdit(index);
+                      }
+                    }}>
                       {isEditing ? (
                         <>
                           <Input
@@ -873,11 +909,16 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                         <span className="font-medium font-mono text-sm">{mapping.source}</span>
                       )}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={(e) => {
+                      if (!isEditing) {
+                        e.stopPropagation();
+                        handleEdit(index);
+                      }
+                    }}>
                       {isEditing ? (
                         <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                           <Select
-                            value={editData.target === 'ignore' ? 'ignore' : (editData.target ? 'map' : '')}
+                            value={editData.target === 'ignore' ? 'ignore' : 'map'}
                             onValueChange={handleTargetChange}
                           >
                             <SelectTrigger className="h-8">
@@ -959,7 +1000,12 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
                         </span>
                       )}
                     </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={(e) => {
+                      if (!isEditing) {
+                        e.stopPropagation();
+                        handleEdit(index);
+                      }
+                    }}>
                       {isEditing ? (
                         <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
