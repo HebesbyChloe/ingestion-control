@@ -15,7 +15,8 @@ import FieldMappingsTable from '@/components/feedRules/FieldMappingsTable';
 import TransformationsTable from '@/components/feedRules/TransformationsTable';
 import CalculatedFieldsTable from '@/components/feedRules/CalculatedFieldsTable';
 import ShardRulesTable from '@/components/feedRules/ShardRulesTable';
-import JsonPreviewPanel from '@/components/feedRules/JsonPreviewPanel';
+import FieldMappingsPreviewPanel from '@/components/feedRules/FieldMappingsPreviewPanel';
+import RulesPreviewPanel from '@/components/feedRules/RulesPreviewPanel';
 import { useFeedRules } from '@/hooks/useFeedRules';
 import { useFeedRulesMutations } from '@/hooks/useFeedRulesMutations';
 import { feedsApi } from '@/lib/api/feeds';
@@ -32,7 +33,8 @@ type RuleType = 'filters' | 'fieldMappings' | 'fieldTransformations' | 'calculat
 export default function FeedRulesPage() {
   const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
   const [selectedRuleType, setSelectedRuleType] = useState<RuleType>('fieldMappings');
-  const [showJsonPreview, setShowJsonPreview] = useState(false);
+  const [showMappingsPreview, setShowMappingsPreview] = useState(false);
+  const [showRulesPreview, setShowRulesPreview] = useState(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [copyToFeedId, setCopyToFeedId] = useState<number | null>(null);
   const queryClient = useQueryClient();
@@ -112,16 +114,25 @@ export default function FeedRulesPage() {
   const handleImportRules = (importedRules: FeedRulesConfig) => {
     if (!selectedFeedId) return;
 
-    // Show confirmation
+    // Warn if fieldMappings are present (they should be imported separately)
+    if (importedRules.fieldMappings && importedRules.fieldMappings.length > 0) {
+      const confirmed = window.confirm(
+        `Warning: The imported JSON contains ${importedRules.fieldMappings.length} field mapping(s). ` +
+        `Field mappings are stored separately and will be ignored. ` +
+        `Only rules (filters, transformations, calculated fields, shard rules) will be imported. Continue?`
+      );
+      if (!confirmed) return;
+    }
+
+    // Show confirmation (excluding fieldMappings from count)
     const totalRules = 
       (importedRules.filters?.length || 0) +
-      (importedRules.fieldMappings?.length || 0) +
       (importedRules.fieldTransformations?.length || 0) +
       (importedRules.calculatedFields?.length || 0) +
       (importedRules.shardRules?.length || 0);
 
     if (totalRules === 0) {
-      alert('No rules found in imported JSON');
+      alert('No rules found in imported JSON (field mappings are excluded)');
       return;
     }
 
@@ -131,14 +142,11 @@ export default function FeedRulesPage() {
     if (!confirmed) return;
 
     // Merge strategy: combine arrays, keeping existing and adding new
+    // Note: fieldMappings are excluded - they're stored in field_mapping column separately
     const mergedRules: FeedRulesConfig = {
       filters: [
         ...(localRules.filters || []),
         ...(importedRules.filters || []),
-      ],
-      fieldMappings: [
-        ...(localRules.fieldMappings || []),
-        ...(importedRules.fieldMappings || []),
       ],
       fieldTransformations: [
         ...(localRules.fieldTransformations || []),
@@ -152,6 +160,7 @@ export default function FeedRulesPage() {
         ...(localRules.shardRules || []),
         ...(importedRules.shardRules || []),
       ],
+      // Explicitly exclude fieldMappings - they're stored in field_mapping column
     };
 
     setLocalRules(mergedRules);
@@ -301,9 +310,15 @@ export default function FeedRulesPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowJsonPreview(!showJsonPreview)}
+                onClick={() => setShowMappingsPreview(!showMappingsPreview)}
               >
-                {showJsonPreview ? 'Hide' : 'Show'} JSON
+                {showMappingsPreview ? 'Hide' : 'Show'} Mappings JSON
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowRulesPreview(!showRulesPreview)}
+              >
+                {showRulesPreview ? 'Hide' : 'Show'} Rules JSON
               </Button>
               <Button
                 onClick={handleSaveChanges}
@@ -387,11 +402,19 @@ export default function FeedRulesPage() {
             </CardContent>
           </Card>
 
-          {/* JSON Preview Panel */}
-          {showJsonPreview && (
-            <JsonPreviewPanel
+          {/* Field Mappings JSON Preview Panel */}
+          {showMappingsPreview && selectedFeed && (
+            <FieldMappingsPreviewPanel
+              mappings={selectedFeed.field_mapping || []}
+              onClose={() => setShowMappingsPreview(false)}
+            />
+          )}
+
+          {/* Rules JSON Preview Panel */}
+          {showRulesPreview && (
+            <RulesPreviewPanel
               rules={localRules}
-              onClose={() => setShowJsonPreview(false)}
+              onClose={() => setShowRulesPreview(false)}
               onImport={handleImportRules}
               feedKey={selectedFeed?.feed_key || selectedFeed?.label || 'unknown'}
             />

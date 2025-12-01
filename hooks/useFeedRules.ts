@@ -9,9 +9,10 @@ import { feedRulesApi, type FeedRulesConfig } from '@/lib/api/feedRules';
 export function useFeedRules(feedId: number | null) {
   const [localRules, setLocalRules] = useState<FeedRulesConfig>({
     filters: [],
-    fieldMappings: [],
     fieldTransformations: [],
     calculatedFields: [],
+    shardRules: [],
+    // Note: fieldMappings are stored separately in field_mapping column
   });
   const [initialRules, setInitialRules] = useState<string>('');
 
@@ -30,10 +31,10 @@ export function useFeedRules(feedId: number | null) {
         // Return empty rules config on error instead of throwing
         return {
           filters: [],
-          fieldMappings: [],
           fieldTransformations: [],
           calculatedFields: [],
           shardRules: [],
+          // Note: fieldMappings are stored separately in field_mapping column
         };
       }
     },
@@ -45,12 +46,13 @@ export function useFeedRules(feedId: number | null) {
   useEffect(() => {
     if (rules) {
       // Ensure all rule arrays are actually arrays (safety check)
+      // Note: fieldMappings are excluded - they're stored in field_mapping column separately
       const safeRules: FeedRulesConfig = {
         filters: Array.isArray(rules.filters) ? rules.filters : [],
-        fieldMappings: Array.isArray(rules.fieldMappings) ? rules.fieldMappings : [],
         fieldTransformations: Array.isArray(rules.fieldTransformations) ? rules.fieldTransformations : [],
         calculatedFields: Array.isArray(rules.calculatedFields) ? rules.calculatedFields : [],
         shardRules: Array.isArray(rules.shardRules) ? rules.shardRules : [],
+        // Note: fieldMappings are stored separately in field_mapping column
       };
       setLocalRules(safeRules);
       setInitialRules(JSON.stringify(safeRules));
@@ -68,18 +70,18 @@ export function useFeedRules(feedId: number | null) {
     let count = 0;
     const initial = initialRules ? JSON.parse(initialRules) : {};
     
-    // Compare each rule type
+    // Compare each rule type (excluding fieldMappings - they're stored separately)
     if (JSON.stringify(localRules.filters) !== JSON.stringify(initial.filters || [])) {
       count += Math.abs((localRules.filters?.length || 0) - (initial.filters?.length || 0));
-    }
-    if (JSON.stringify(localRules.fieldMappings) !== JSON.stringify(initial.fieldMappings || [])) {
-      count += Math.abs((localRules.fieldMappings?.length || 0) - (initial.fieldMappings?.length || 0));
     }
     if (JSON.stringify(localRules.fieldTransformations) !== JSON.stringify(initial.fieldTransformations || [])) {
       count += Math.abs((localRules.fieldTransformations?.length || 0) - (initial.fieldTransformations?.length || 0));
     }
     if (JSON.stringify(localRules.calculatedFields) !== JSON.stringify(initial.calculatedFields || [])) {
       count += Math.abs((localRules.calculatedFields?.length || 0) - (initial.calculatedFields?.length || 0));
+    }
+    if (JSON.stringify(localRules.shardRules) !== JSON.stringify(initial.shardRules || [])) {
+      count += Math.abs((localRules.shardRules?.length || 0) - (initial.shardRules?.length || 0));
     }
 
     return Math.max(count, 1); // At least 1 if there are changes

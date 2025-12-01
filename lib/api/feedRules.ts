@@ -101,10 +101,10 @@ export const feedRulesApi = {
       if (!feed.rules) {
         return {
           filters: [],
-          fieldMappings: [],
           fieldTransformations: [],
           calculatedFields: [],
           shardRules: [],
+          // Note: fieldMappings are stored separately in field_mapping column
         };
       }
 
@@ -117,33 +117,36 @@ export const feedRulesApi = {
           console.error('Failed to parse rules JSON:', e);
           return {
             filters: [],
-            fieldMappings: [],
             fieldTransformations: [],
             calculatedFields: [],
             shardRules: [],
+            // Note: fieldMappings are stored separately in field_mapping column
           };
         }
       }
+      
+      // Extract rules config, excluding fieldMappings (they're in field_mapping column)
+      const { fieldMappings, ...rulesWithoutMappings } = rules;
 
       // Handle legacy format where rules is just an array (old filter-only format)
       if (Array.isArray(rules)) {
         return {
           filters: rules as FilterRule[],
-          fieldMappings: [],
           fieldTransformations: [],
           calculatedFields: [],
           shardRules: [],
+          // Note: fieldMappings are stored separately in field_mapping column
         };
       }
 
-      // Return full rules object with defaults for missing properties
+      // Return rules object excluding fieldMappings (they're in field_mapping column)
       // Ensure each property is an array (handle cases where it might be an object or other type)
       return {
-        filters: Array.isArray(rules.filters) ? rules.filters : [],
-        fieldMappings: Array.isArray(rules.fieldMappings) ? rules.fieldMappings : [],
-        fieldTransformations: Array.isArray(rules.fieldTransformations) ? rules.fieldTransformations : [],
-        calculatedFields: Array.isArray(rules.calculatedFields) ? rules.calculatedFields : [],
-        shardRules: Array.isArray(rules.shardRules) ? rules.shardRules : [],
+        filters: Array.isArray(rulesWithoutMappings.filters) ? rulesWithoutMappings.filters : [],
+        fieldTransformations: Array.isArray(rulesWithoutMappings.fieldTransformations) ? rulesWithoutMappings.fieldTransformations : [],
+        calculatedFields: Array.isArray(rulesWithoutMappings.calculatedFields) ? rulesWithoutMappings.calculatedFields : [],
+        shardRules: Array.isArray(rulesWithoutMappings.shardRules) ? rulesWithoutMappings.shardRules : [],
+        // Note: fieldMappings are stored separately in field_mapping column
       };
     } catch (error) {
       console.error('Error fetching feed rules:', error);
@@ -167,12 +170,10 @@ export const feedRulesApi = {
       }
 
       // Clean up empty arrays to keep JSON clean
-      const cleanRules: FeedRulesConfig = {};
+      // Note: fieldMappings are excluded - they're stored in field_mapping column separately
+      const cleanRules: Omit<FeedRulesConfig, 'fieldMappings'> = {};
       if (rules.filters && rules.filters.length > 0) {
         cleanRules.filters = rules.filters;
-      }
-      if (rules.fieldMappings && rules.fieldMappings.length > 0) {
-        cleanRules.fieldMappings = rules.fieldMappings;
       }
       if (rules.fieldTransformations && rules.fieldTransformations.length > 0) {
         cleanRules.fieldTransformations = rules.fieldTransformations;
