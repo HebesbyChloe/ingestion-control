@@ -228,7 +228,7 @@ export default function FeedRulesPage() {
   };
 
   const fieldMappingValidation = validateFieldMappings();
-  const canAccessOtherRules = fieldMappingValidation.isValid;
+  // Field mappings are now optional - just show warning, don't block access
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
@@ -249,7 +249,7 @@ export default function FeedRulesPage() {
       {/* Show content only if feed is selected */}
       {selectedFeedId && (
         <>
-          {/* Validation Warning */}
+          {/* Field Mapping Warning (Informational Only) */}
           {!fieldMappingValidation.isValid && (
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="pt-6">
@@ -257,11 +257,11 @@ export default function FeedRulesPage() {
                   <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
                   <div className="flex-1">
                     <div className="font-medium text-amber-900 mb-1">
-                      Field Mappings Required
+                      Field Mapping Warning
                     </div>
                     <div className="text-sm text-amber-700">
                       {fieldMappingValidation.unmappedFields.length} field(s) from the field schema are not mapped. 
-                      Please complete field mappings before configuring other rules.
+                      You can still configure other rules, but unmapped fields may not be processed correctly.
                     </div>
                     {fieldMappingValidation.unmappedFields.length > 0 && (
                       <div className="mt-2 text-xs text-amber-600">
@@ -281,15 +281,10 @@ export default function FeedRulesPage() {
           <FeedRuleTypeTabs
             selectedRuleType={selectedRuleType}
             onSelectRuleType={(type) => {
-              // Prevent switching to other rules if field mappings are incomplete
-              if (!canAccessOtherRules && type !== 'fieldMappings') {
-                alert('Please complete all field mappings before configuring other rules.');
-                return;
-              }
+              // Field mappings are optional - allow switching to any rule type
               setSelectedRuleType(type);
             }}
             counts={counts}
-            disabledTabs={!canAccessOtherRules ? ['filters', 'fieldTransformations', 'calculatedFields', 'shardRules'] : []}
           />
 
           {/* Action Buttons */}
