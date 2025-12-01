@@ -73,30 +73,45 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { id, ...updateData } = body;
     
-    const response = await fetch(`${API_GATEWAY_URL}/rest/sys_feeds?id=eq.${id}`, {
+    console.log('PATCH /api/feeds - Request body:', JSON.stringify(body, null, 2));
+    console.log('PATCH /api/feeds - Update data:', JSON.stringify(updateData, null, 2));
+    console.log('PATCH /api/feeds - Feed ID:', id);
+    
+    const url = `${API_GATEWAY_URL}/rest/sys_feeds?id=eq.${id}`;
+    console.log('PATCH /api/feeds - Gateway URL:', url);
+    
+    const requestBody = JSON.stringify(updateData);
+    console.log('PATCH /api/feeds - Request body to gateway:', requestBody);
+    
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: {
         'X-API-Key': API_KEY,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation',
       },
-      body: JSON.stringify(updateData),
+      body: requestBody,
     });
 
+    console.log('PATCH /api/feeds - Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      const error = await response.text();
+      const errorText = await response.text();
+      console.error('PATCH /api/feeds - Error response:', errorText);
       return NextResponse.json(
-        { error: 'Failed to update feed', details: error },
+        { error: 'Failed to update feed', details: errorText },
         { status: response.status }
       );
     }
 
     const data = await response.json();
+    console.log('PATCH /api/feeds - Success response:', JSON.stringify(data, null, 2));
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error updating feed:', error);
+    console.error('PATCH /api/feeds - Exception:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }

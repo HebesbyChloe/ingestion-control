@@ -502,20 +502,28 @@ export const feedRulesApi = {
    */
   updateFieldMappings: async (feedId: number, mappings: FieldMapping[]): Promise<Feed> => {
     try {
-      console.log('Updating field mappings for feed:', feedId, mappings);
-      const updatedFeed = await feedsApi.update(feedId, {
+      const payload = {
         field_mapping: mappings,
-      });
-      console.log('Successfully updated field mappings:', updatedFeed);
+      };
+      console.log('Updating field mappings for feed:', feedId);
+      console.log('Payload being sent:', JSON.stringify(payload, null, 2));
+      console.log('Mappings array:', mappings);
+      
+      const updatedFeed = await feedsApi.update(feedId, payload);
+      console.log('Successfully updated field mappings, response:', updatedFeed);
       return updatedFeed;
     } catch (error) {
-      console.error('Error updating field mappings:', {
+      console.error('Error updating field mappings - full details:', {
         feedId,
         mappingsCount: mappings.length,
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined
+        mappings: JSON.stringify(mappings, null, 2),
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorObject: error
       });
-      throw error;
+      // Re-throw with more context
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to update field mappings: ${errorMessage}`);
     }
   },
 };

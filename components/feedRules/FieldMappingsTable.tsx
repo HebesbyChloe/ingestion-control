@@ -133,7 +133,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     }
   }, [feedId]);
 
-  // Auto-populate all fields from field_schema (run after mappings are loaded)
+  // Auto-populate all fields from field_schema (run after mappings are loaded AND fieldSchema is available)
   useEffect(() => {
     console.log('Auto-populate effect:', {
       isLoading,
@@ -145,7 +145,8 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     });
     
     // Only run if not loading, has fieldSchema, has feedId, and hasn't populated yet
-    if (!isLoading && fieldSchema?.fields && feedId && !hasAutoPopulated) {
+    // This will run when fieldSchema becomes available OR when mappings finish loading
+    if (!isLoading && fieldSchema?.fields && fieldSchema.fields.length > 0 && feedId && !hasAutoPopulated) {
       const existingSources = new Set(mappings.map(m => m.source).filter(Boolean));
       const unmappedFields = fieldSchema.fields.filter(
         f => !existingSources.has(f.name)
@@ -164,7 +165,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
         setMappings(prev => [...prev, ...newMappings]);
         setHasAutoPopulated(true);
       } else {
-        // Mark as populated even if no new fields to add
+        // Mark as populated even if no new fields to add (all fields already mapped)
         console.log('No unmapped fields to add, marking as populated');
         setHasAutoPopulated(true);
       }
@@ -192,17 +193,20 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       .finally(() => setIsLoadingModules(false));
   }, []);
 
-  // Load columns when module is selected
+  // Load columns when module is selected (regardless of editing state)
   useEffect(() => {
-    if (selectedModule && editingIndex !== null) {
+    if (selectedModule) {
       setIsLoadingColumns(true);
-      console.log('Loading columns for module:', selectedModule);
+      console.log('Loading columns for module:', selectedModule, 'editingIndex:', editingIndex);
       schemaApi.getModuleColumns(selectedModule)
         .then((data) => {
           console.log('Loaded module columns:', data);
           setModuleColumns(data);
-          setSelectedTable('');
-          setSelectedField('');
+          // Only reset table/field if we're not currently editing (to preserve selections)
+          if (editingIndex === null) {
+            setSelectedTable('');
+            setSelectedField('');
+          }
         })
         .catch((error) => {
           console.error('Error loading module columns:', error);
@@ -210,11 +214,12 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
         })
         .finally(() => setIsLoadingColumns(false));
     } else {
+      // Only clear columns if module is deselected
       setModuleColumns(null);
       setSelectedTable('');
       setSelectedField('');
     }
-  }, [selectedModule, editingIndex]);
+  }, [selectedModule]); // Removed editingIndex dependency - load columns whenever module changes
 
   // Notify parent of changes
   useEffect(() => {
@@ -299,7 +304,7 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       // Validate mapping - allow empty target for now (user might be in process of selecting)
       // Only save if target is set or is 'ignore'
       if (mapping.target === '' || mapping.target === undefined) {
-        console.log('Skipping save: target not set yet');
+        console.log('Skipping auto-save: target not set yet');
         return;
       }
 
@@ -307,14 +312,18 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       setSaveError(null);
       
       try {
-        console.log('Auto-saving mapping at index', index, mapping);
-        await feedRulesApi.updateFieldMappings(feedId, currentMappings);
+        console.log('Auto-saving mapping at index', index, 'feedId:', feedId, 'mapping:', JSON.stringify(mapping, null, 2));
+        console.log('Auto-saving all mappings:', JSON.stringify(currentMappings, null, 2));
+        const result = await feedRulesApi.updateFieldMappings(feedId, currentMappings);
+        console.log('Successfully auto-saved field mappings, result:', result);
         setSaveSuccess(index);
         setTimeout(() => setSaveSuccess(null), 2000);
-        console.log('Successfully saved field mappings');
       } catch (error) {
-        console.error('Error saving field mappings:', error);
-        setSaveError(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error('Error auto-saving field mappings - full error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorDetails = error instanceof Error && error.stack ? error.stack : String(error);
+        console.error('Auto-save error details:', errorDetails);
+        setSaveError(`Failed to auto-save: ${errorMessage}`);
         setTimeout(() => setSaveError(null), 5000);
       } finally {
         setSavingIndex(null);
@@ -424,8 +433,9 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     setSaveError(null);
     
     try {
-      console.log('Saving field mappings:', updatedMappings);
-      await feedRulesApi.updateFieldMappings(feedId, updatedMappings);
+      console.log('Saving field mappings - feedId:', feedId, 'mappings:', JSON.stringify(updatedMappings, null, 2));
+      const result = await feedRulesApi.updateFieldMappings(feedId, updatedMappings);
+      console.log('Successfully saved field mappings, result:', result);
       setSaveSuccess(index);
       setTimeout(() => setSaveSuccess(null), 2000);
       setEditingIndex(null);
@@ -434,10 +444,12 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
       setSelectedTable('');
       setSelectedField('');
     } catch (error) {
-      console.error('Error saving field mappings:', error);
+      console.error('Error saving field mappings - full error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorDetails = error instanceof Error && error.stack ? error.stack : String(error);
+      console.error('Error details:', errorDetails);
       setSaveError(`Failed to save: ${errorMessage}`);
-      alert(`Failed to save field mappings: ${errorMessage}`);
+      alert(`Failed to save field mappings: ${errorMessage}\n\nCheck console for details.`);
     } finally {
       setSavingIndex(null);
     }
@@ -538,33 +550,32 @@ export default function FieldMappingsTable({ feedId, fieldSchema, onMappingsChan
     setSelectedTable('');
     setSelectedField('');
     
-    // Load columns for the module
-    if (editingIndex !== null) {
-      setIsLoadingColumns(true);
-      try {
-        const data = await schemaApi.getModuleColumns(module);
-        setModuleColumns(data);
-        
-        // Auto-suggest table/field based on source field name
-        if (editData.source && Object.keys(data.tables || {}).length > 0) {
-          // Find best matching table (simplified - use first table for now)
-          const firstTable = Object.keys(data.tables)[0];
-          if (firstTable) {
-            setSelectedTable(firstTable);
-            const tableFields = data.tables[firstTable].columns.map(col => col.field);
-            const bestMatch = findBestMatch(editData.source, tableFields);
-            if (bestMatch) {
-              setSelectedField(bestMatch);
-              handleUpdate('target', `${module}/${firstTable}/${bestMatch}`);
-            }
+    // Load columns for the module (always, not just when editing)
+    setIsLoadingColumns(true);
+    try {
+      console.log('Loading columns for module in handleModuleChange:', module);
+      const data = await schemaApi.getModuleColumns(module);
+      setModuleColumns(data);
+      
+      // Auto-suggest table/field based on source field name (if editing)
+      if (editingIndex !== null && editData.source && Object.keys(data.tables || {}).length > 0) {
+        // Find best matching table (simplified - use first table for now)
+        const firstTable = Object.keys(data.tables)[0];
+        if (firstTable) {
+          setSelectedTable(firstTable);
+          const tableFields = data.tables[firstTable].columns.map(col => col.field);
+          const bestMatch = findBestMatch(editData.source, tableFields);
+          if (bestMatch) {
+            setSelectedField(bestMatch);
+            handleUpdate('target', `${module}/${firstTable}/${bestMatch}`);
           }
         }
-      } catch (error) {
-        console.error('Error loading module columns:', error);
-        setModuleColumns(null);
-      } finally {
-        setIsLoadingColumns(false);
       }
+    } catch (error) {
+      console.error('Error loading module columns in handleModuleChange:', error);
+      setModuleColumns(null);
+    } finally {
+      setIsLoadingColumns(false);
     }
   };
 
