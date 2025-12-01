@@ -379,6 +379,7 @@ export default function RulesPage() {
         const tempId = tempIdCounter.current--;
         const newRule: PendingCreateRule = {
           ...importedRule,
+          config: importedRule.config as PricingRuleConfig | OriginRuleConfig | ScoringRuleConfig,
           tempId,
           priority: localRules.length + newPendingCreates.length,
         };
